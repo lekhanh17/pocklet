@@ -1,0 +1,6 @@
+.vscode/
+# API sau nay (vai A)
+api/bin/
+api/obj/
+api/uploads/
+*.user
