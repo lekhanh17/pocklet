@@ -24,31 +24,33 @@ class AsyncView<T> extends StatelessWidget {
       data: builder,
       loading: () => SizedBox(
         height: loadingHeight,
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: const Center(
+          child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+        ),
       ),
       error: (error, stack) => Container(
-        padding: const EdgeInsets.all(16),
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          color: AppColors.canvas,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.hairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Không tải được dữ liệu',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
+            const Text('Không tải được dữ liệu', style: AppText.bodyStrong),
+            const SizedBox(height: AppSpacing.xxs),
             Text(
               '$error',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.textMuted),
+              style: AppText.caption.copyWith(color: AppColors.inkMuted48),
             ),
-            if (onRetry != null)
-              TextButton(onPressed: onRetry, child: const Text('Thử lại')),
+            if (onRetry != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              FilledButton(onPressed: onRetry, child: const Text('Thử lại')),
+            ],
           ],
         ),
       ),

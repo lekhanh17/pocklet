@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/format.dart';
+import '../core/theme.dart';
 import '../models/category.dart';
 
 const _palette = [
@@ -9,7 +10,7 @@ const _palette = [
   Color(0xFF81B29A),
   Color(0xFFE0A458),
   Color(0xFF9C6ADE),
-  Color(0xFF0F766E),
+  Color(0xFF5E8C8A),
 ];
 
 Color placeholderColorFor(int photoId) => _palette[photoId % _palette.length];
@@ -26,7 +27,7 @@ class PhotoThumb extends StatelessWidget {
     super.key,
     required this.photoId,
     this.isReceipt = false,
-    this.borderRadius = 12,
+    this.borderRadius = AppRadius.sm,
     this.showIcon = true,
   });
 
@@ -84,7 +85,11 @@ class _StripePainter extends CustomPainter {
 
 /// O thay anh cho khoan chi khong co anh: bieu tuong danh muc.
 class CategoryTile extends StatelessWidget {
-  const CategoryTile({super.key, required this.category, this.borderRadius = 12});
+  const CategoryTile({
+    super.key,
+    required this.category,
+    this.borderRadius = AppRadius.sm,
+  });
 
   final ExpenseCategory category;
   final double borderRadius;
@@ -94,10 +99,39 @@ class CategoryTile extends StatelessWidget {
     return Container(
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: category.color.withAlpha(35),
+        color: category.color.withAlpha(30),
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: Icon(category.icon, color: category.color, size: 36),
+    );
+  }
+}
+
+/// Nhan vien thuoc trong suot de len anh (#d2d2d7 ~64%), chu mau ink.
+class OverlayChip extends StatelessWidget {
+  const OverlayChip({super.key, required this.label, this.small = false});
+
+  final String label;
+  final bool small;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: small ? 5 : 8,
+        vertical: small ? 2 : 4,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.chipTranslucent,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.clip,
+        style: (small ? AppText.micro : AppText.finePrint)
+            .copyWith(fontWeight: FontWeight.w600),
+      ),
     );
   }
 }
@@ -109,23 +143,7 @@ class AmountChip extends StatelessWidget {
   final int amount;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: const Color(0x99000000),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        formatVnd(amount),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => OverlayChip(label: formatVnd(amount));
 }
 
 /// Nhan "+1" khi khoan chi co nhieu anh.
@@ -135,21 +153,5 @@ class CountBadge extends StatelessWidget {
   final int extra;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: const Color(0x99000000),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        '+$extra',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => OverlayChip(label: '+$extra');
 }

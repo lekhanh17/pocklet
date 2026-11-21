@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/coming_soon.dart';
+import '../../core/theme.dart';
 import '../../models/expense.dart';
 import '../../widgets/photo_thumb.dart';
 
@@ -50,14 +51,19 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
     final photos = widget.photos;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.surfaceBlack,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: Text('${_index + 1}/${photos.length}'),
+        backgroundColor: AppColors.surfaceBlack,
+        foregroundColor: AppColors.bodyOnDark,
+        title: Text(
+          '${_index + 1}/${photos.length}',
+          style: AppText.bodyStrong.copyWith(color: AppColors.bodyOnDark),
+        ),
         actions: [
           IconButton(
             tooltip: 'Xoá ảnh',
+            // Tren nen toi dung xanh sang (primaryOnDark)
+            color: AppColors.primaryOnDark,
             icon: const Icon(Icons.delete_outline),
             // TODO(FR-12): goi DELETE /api/photos/{id}
             onPressed: () => showComingSoon(context, 'Xoá ảnh'),

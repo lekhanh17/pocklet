@@ -38,60 +38,67 @@ class HomeShell extends ConsumerWidget {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) {
-          if (i == _captureIndex) {
-            // TODO(FR-10): mo man Camera
-            showComingSoon(context, 'Camera');
-            return;
-          }
-          ref.read(tabIndexProvider.notifier).select(i);
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.today_outlined),
-            selectedIcon: Icon(Icons.today),
-            label: 'Hôm nay',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: 'Lịch',
-          ),
-          NavigationDestination(
-            icon: _CaptureIcon(),
-            label: 'Chụp',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.pie_chart_outline),
-            selectedIcon: Icon(Icons.pie_chart),
-            label: 'Thống kê',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Ngân sách',
-          ),
-        ],
+      // Thanh duoi nen trang, chi ngan cach bang mot duong hairline
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.hairline)),
+        ),
+        child: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: (i) {
+            if (i == _captureIndex) {
+              // TODO(FR-10): mo man Camera
+              showComingSoon(context, 'Camera');
+              return;
+            }
+            ref.read(tabIndexProvider.notifier).select(i);
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.today_outlined),
+              selectedIcon: Icon(Icons.today),
+              label: 'Hôm nay',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.calendar_month_outlined),
+              selectedIcon: Icon(Icons.calendar_month),
+              label: 'Lịch',
+            ),
+            NavigationDestination(
+              icon: _CaptureIcon(),
+              label: 'Chụp',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.pie_chart_outline),
+              selectedIcon: Icon(Icons.pie_chart),
+              label: 'Thống kê',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              selectedIcon: Icon(Icons.account_balance_wallet),
+              label: 'Ngân sách',
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+/// Nut Chup: vien thuoc xanh, thao tac chinh cua app.
 class _CaptureIcon extends StatelessWidget {
   const _CaptureIcon();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 48,
+      width: 52,
       height: 34,
       decoration: BoxDecoration(
-        color: AppColors.accent,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
-      child: const Icon(Icons.photo_camera, color: Colors.white),
+      child: const Icon(Icons.photo_camera, color: Colors.white, size: 20),
     );
   }
 }

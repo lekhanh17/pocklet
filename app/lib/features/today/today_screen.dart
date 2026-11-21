@@ -13,6 +13,7 @@ import '../../providers/app_providers.dart';
 import '../../widgets/async_view.dart';
 import '../../widgets/dashed_border.dart';
 import '../../widgets/photo_thumb.dart';
+import '../../widgets/pressable.dart';
 import '../../widgets/section_card.dart';
 
 /// Man Hôm nay (dac ta muc 5.1, FR-19).
@@ -28,7 +29,7 @@ class TodayScreen extends ConsumerWidget {
     final week = ref.watch(last7DaysProvider);
 
     return SafeArea(
-      child: RefreshIndicator(
+      child: RefreshIndicator.adaptive(
         onRefresh: () async {
           ref.invalidate(dayExpensesProvider(today));
           ref.invalidate(budgetOverviewProvider(month));
@@ -36,10 +37,12 @@ class TodayScreen extends ConsumerWidget {
           await ref.read(dayExpensesProvider(today).future);
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xl,
+          ),
           children: [
             _Header(today: today),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             AsyncView<List<Expense>>(
               value: expenses,
               onRetry: () => ref.invalidate(dayExpensesProvider(today)),
@@ -47,18 +50,18 @@ class TodayScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _TodaySummary(items: items),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   _TodayStrip(items: items),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.lg),
             AsyncView<BudgetOverview>(
               value: budget,
               onRetry: () => ref.invalidate(budgetOverviewProvider(month)),
               builder: (data) => _BudgetCard(overview: data, today: today),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xl),
             AsyncView<List<CalendarDay>>(
               value: week,
               onRetry: () => ref.invalidate(last7DaysProvider),
@@ -72,7 +75,7 @@ class TodayScreen extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Dau trang: thu, ngay; tieu de; nut chu cai dau cua ten
+// Dau trang: thu, ngay; tieu de lon; nut tron chu cai dau cua ten
 // ---------------------------------------------------------------------------
 
 class _Header extends ConsumerWidget {
@@ -83,9 +86,9 @@ class _Header extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final name = ref.watch(currentUserNameProvider);
-    final text = Theme.of(context).textTheme;
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Expanded(
           child: Column(
@@ -93,33 +96,27 @@ class _Header extends ConsumerWidget {
             children: [
               Text(
                 formatFullDay(today),
-                style: text.bodyMedium?.copyWith(color: AppColors.textMuted),
+                style: AppText.captionStrong.copyWith(color: AppColors.inkMuted48),
               ),
-              Text(
-                'Hôm nay',
-                style: text.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
-              ),
+              const SizedBox(height: AppSpacing.xxs),
+              const Text('Hôm nay', style: AppText.displayMd),
             ],
           ),
         ),
-        Tooltip(
-          message: 'Tài khoản',
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            // TODO(FR-04): mo man Tai khoan
-            onTap: () => showComingSoon(context, 'Tài khoản'),
-            child: CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.accent,
-              child: Text(
-                initialOf(name),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+        // Nut tron 44px tren nen chip trong suot
+        Pressable(
+          semanticLabel: 'Tài khoản',
+          // TODO(FR-04): mo man Tai khoan
+          onTap: () => showComingSoon(context, 'Tài khoản'),
+          child: Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: AppColors.chipTranslucent,
+              shape: BoxShape.circle,
             ),
+            child: Text(initialOf(name), style: AppText.bodyStrong),
           ),
         ),
       ],
@@ -128,7 +125,7 @@ class _Header extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Chi hom nay: tong tien, so khoan, so anh
+// Chi hom nay: the toi, tong tien lon, so khoan, so anh
 // ---------------------------------------------------------------------------
 
 class _TodaySummary extends StatelessWidget {
@@ -140,28 +137,25 @@ class _TodaySummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = items.fold<int>(0, (sum, e) => sum + e.amount);
     final photoCount = items.fold<int>(0, (sum, e) => sum + e.photos.length);
-    final text = Theme.of(context).textTheme;
 
     return SectionCard(
+      dark: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Chi hôm nay',
-            style: text.bodyMedium?.copyWith(color: AppColors.textMuted),
+            style: AppText.captionStrong.copyWith(color: AppColors.bodyMuted),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             formatVnd(total),
-            style: text.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: AppColors.accent,
-            ),
+            style: AppText.displayLg.copyWith(color: AppColors.bodyOnDark),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             '${items.length} khoản · $photoCount ảnh',
-            style: text.bodyMedium?.copyWith(color: AppColors.textMuted),
+            style: AppText.caption.copyWith(color: AppColors.bodyMuted),
           ),
         ],
       ),
@@ -184,11 +178,11 @@ class _TodayStrip extends ConsumerWidget {
         ref.watch(categoryMapProvider).valueOrNull ?? const <int, ExpenseCategory>{};
 
     return SizedBox(
-      height: 210,
+      height: 214,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length + 1,
-        separatorBuilder: (context, index) => const SizedBox(width: 12),
+        separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, index) {
           if (index == 0) return const _CaptureTile();
           final expense = items[index - 1];
@@ -207,28 +201,24 @@ class _CaptureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 120,
-      child: DashedBox(
-        color: AppColors.accent,
-        radius: 16,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          // TODO(FR-10): mo man Camera
-          onTap: () => showComingSoon(context, 'Camera'),
-          child: const Center(
+    return Pressable(
+      // TODO(FR-10): mo man Camera
+      onTap: () => showComingSoon(context, 'Camera'),
+      child: SizedBox(
+        width: 120,
+        child: DashedBox(
+          color: AppColors.primary,
+          radius: AppRadius.lg,
+          child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.add_a_photo_outlined, color: AppColors.accent, size: 32),
-                SizedBox(height: 8),
+                const Icon(Icons.add_a_photo_outlined, color: AppColors.primary, size: 28),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Chụp khoản mới',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.accent,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: AppText.captionStrong.copyWith(color: AppColors.primary),
                 ),
               ],
             ),
@@ -247,14 +237,11 @@ class _ExpenseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-
-    return SizedBox(
-      width: 140,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        // TODO(FR-08): mo man Sua khoan chi
-        onTap: () => showComingSoon(context, 'Sửa khoản chi'),
+    return Pressable(
+      // TODO(FR-08): mo man Sua khoan chi
+      onTap: () => showComingSoon(context, 'Sửa khoản chi'),
+      child: SizedBox(
+        width: 140,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -266,36 +253,37 @@ class _ExpenseCard extends StatelessWidget {
                     PhotoThumb(
                       photoId: expense.photos.first.id,
                       isReceipt: expense.photos.first.isReceipt,
-                      borderRadius: 16,
+                      borderRadius: AppRadius.lg,
                     )
                   else
-                    CategoryTile(category: category, borderRadius: 16),
+                    CategoryTile(category: category, borderRadius: AppRadius.lg),
                   Positioned(
-                    left: 8,
-                    bottom: 8,
+                    left: AppSpacing.xs,
+                    bottom: AppSpacing.xs,
                     child: AmountChip(amount: expense.amount),
                   ),
                   if (expense.photos.length > 1)
                     Positioned(
-                      right: 8,
-                      top: 8,
+                      right: AppSpacing.xs,
+                      top: AppSpacing.xs,
                       child: CountBadge(extra: expense.photos.length - 1),
                     ),
                 ],
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               expense.note ?? category.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: text.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+              style: AppText.captionStrong,
             ),
+            const SizedBox(height: 2),
             Text(
               '${category.name} · ${formatTime(expense.spentAt)}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: text.bodySmall?.copyWith(color: AppColors.textMuted),
+              style: AppText.finePrint.copyWith(color: AppColors.inkMuted48),
             ),
           ],
         ),
@@ -308,8 +296,9 @@ class _ExpenseCard extends StatelessWidget {
 // Ngan sach thang (FR-16, FR-18, BR-04)
 // ---------------------------------------------------------------------------
 
+/// Mau trang thai: binh thuong dung ink (khong phai mau tuong tac).
 Color _levelColor(BudgetLevel level) => switch (level) {
-      BudgetLevel.normal => AppColors.accent,
+      BudgetLevel.normal => AppColors.ink,
       BudgetLevel.warning => AppColors.warning,
       BudgetLevel.over => AppColors.danger,
     };
@@ -324,7 +313,6 @@ class _BudgetCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final categories =
         ref.watch(categoryMapProvider).valueOrNull ?? const <int, ExpenseCategory>{};
-    final text = Theme.of(context).textTheme;
     final total = overview.total;
     // TODO(FR-16): mo man Ngan sach thay vi chuyen tab
     void openBudget() => ref.read(tabIndexProvider.notifier).select(4);
@@ -334,15 +322,13 @@ class _BudgetCard extends ConsumerWidget {
         onTap: openBudget,
         child: Row(
           children: [
-            const Icon(Icons.account_balance_wallet_outlined, color: AppColors.accent),
-            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 'Chưa đặt ngân sách tháng ${overview.month.month}',
-                style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                style: AppText.bodyStrong,
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.textMuted),
+            const Icon(Icons.chevron_right, color: AppColors.primary),
           ],
         ),
       );
@@ -371,40 +357,38 @@ class _BudgetCard extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'Ngân sách tháng ${overview.month.month}',
-                  style: text.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  style: AppText.tagline,
                 ),
               ),
               Text(
                 '${total.percent}%',
-                style: text.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                ),
+                style: AppText.tagline.copyWith(color: color),
               ),
+              const SizedBox(width: AppSpacing.xxs),
+              const Icon(Icons.chevron_right, color: AppColors.primary),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm),
           ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
             child: LinearProgressIndicator(
               value: total.ratio.clamp(0.0, 1.0).toDouble(),
-              minHeight: 8,
+              minHeight: 6,
               color: color,
-              backgroundColor: AppColors.border,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             'Đã chi ${formatVnd(total.spent)} / ${formatVnd(total.limit)}',
-            style: text.bodyMedium?.copyWith(color: AppColors.textMuted),
+            style: AppText.caption.copyWith(color: AppColors.inkMuted48),
           ),
-          const SizedBox(height: 2),
-          Text(hint, style: text.bodyMedium),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(hint, style: AppText.caption),
           if (overview.alerts.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
               children: [
                 for (final line in overview.alerts)
                   _AlertChip(
@@ -432,23 +416,19 @@ class _AlertChip extends StatelessWidget {
     final label = line.level == BudgetLevel.over ? 'vượt' : 'sắp hết';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withAlpha(28),
-        borderRadius: BorderRadius.circular(20),
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(category.icon, size: 14, color: color),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xxs),
           Text(
             '${category.name} · $label ${line.percent}%',
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
+            style: AppText.finePrint.copyWith(color: color, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -468,24 +448,18 @@ class _Last7Days extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final text = Theme.of(context).textTheme;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '7 ngày qua',
-          style: text.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 10),
+        const Text('7 ngày qua', style: AppText.tagline),
+        const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
             for (final day in days)
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
+                  child: Pressable(
                     onTap: () => openDayInCalendar(ref, day.date),
                     child: _WeekCell(day: day, isToday: isSameDay(day.date, today)),
                   ),
@@ -515,10 +489,10 @@ class _WeekCell extends StatelessWidget {
           child: Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              color: AppColors.canvas,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
               border: Border.all(
-                color: isToday ? AppColors.accent : AppColors.border,
+                color: isToday ? AppColors.primaryFocus : AppColors.hairline,
                 width: isToday ? 2 : 1,
               ),
             ),
@@ -527,26 +501,23 @@ class _WeekCell extends StatelessWidget {
                 : Center(
                     child: Text(
                       '${day.date.day}',
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppText.captionStrong.copyWith(color: AppColors.inkMuted48),
                     ),
                   ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           weekdayShort(day.date),
-          style: TextStyle(
-            fontSize: 12,
-            color: isToday ? AppColors.accent : AppColors.textMuted,
-            fontWeight: FontWeight.w700,
+          style: AppText.finePrint.copyWith(
+            color: isToday ? AppColors.primary : AppColors.inkMuted48,
+            fontWeight: FontWeight.w600,
           ),
         ),
+        const SizedBox(height: 3),
         Text(
           formatShort(day.total),
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+          style: AppText.finePrint.copyWith(fontWeight: FontWeight.w600),
         ),
       ],
     );

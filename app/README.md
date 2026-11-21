@@ -1,6 +1,6 @@
 # Pocklet – App Flutter (đợt 1: giao diện)
 
-Đợt này gồm: khung app, theme hướng B · Nhật ký ảnh, thanh điều hướng 5 mục, **màn Hôm nay**, **màn Lịch** và màn xem ảnh toàn màn hình. Dữ liệu là **dữ liệu mẫu** (mock), chưa gọi API.
+Đợt này gồm: khung app, theme theo `DESIGN-apple.md` (một màu tương tác `#0066cc`, nền `#f5f5f7`, thẻ trắng viền hairline bo 18, nhấn thu nhỏ 0.95), thanh điều hướng 5 mục, **màn Hôm nay**, **màn Lịch** và màn xem ảnh toàn màn hình. Dữ liệu là **dữ liệu mẫu** (mock), chưa gọi API.
 
 ## Chạy lần đầu
 
@@ -23,20 +23,20 @@ flutter test
 flutter run
 ```
 
-Font Nunito được tải qua `google_fonts` khi chạy lần đầu nên máy cần có mạng. Bản release cần thêm quyền `<uses-permission android:name="android.permission.INTERNET"/>` trong `android/app/src/main/AndroidManifest.xml` (sau này gọi API cũng cần quyền này).
+Trên iOS dùng font hệ thống (SF Pro); trên Android dùng Inter, tải qua `google_fonts` khi chạy lần đầu nên máy cần có mạng. Bản release cần thêm quyền `<uses-permission android:name="android.permission.INTERNET"/>` trong `android/app/src/main/AndroidManifest.xml` (sau này gọi API cũng cần quyền này).
 
 ## Cấu trúc thư mục
 
 ```
 lib/
   main.dart, app.dart           Điểm vào, MaterialApp
-  core/                         Theme (màu hướng B), định dạng tiền BR-01, ngày tháng
+  core/                         Theme (AppColors, AppText, AppRadius, AppSpacing), định dạng tiền BR-01, ngày tháng
   models/                       ExpenseCategory, Expense, CalendarMonth, BudgetOverview
   data/
     expense_repository.dart     Giao diện lớp dữ liệu, mỗi hàm ứng với một endpoint API
     mock_expense_repository.dart  Dữ liệu mẫu, sinh từ ngày 1 đến hôm nay
   providers/app_providers.dart  Toàn bộ provider Riverpod
-  widgets/                      PhotoThumb (khung sọc thay ảnh), viền nét đứt, thẻ, AsyncView
+  widgets/                      PhotoThumb (khung sọc thay ảnh), Pressable (nhấn thu nhỏ), viền nét đứt, thẻ, AsyncView
   features/
     shell/                      Thanh điều hướng 5 mục
     today/                      Màn Hôm nay

@@ -1,4 +1,4 @@
-/// Dinh dang hien thi theo BR-01 (tien) va tieng Viet (ngay gio).
+// Dinh dang hien thi theo BR-01 (tien) va tieng Viet (ngay gio).
 
 const _weekdayNames = [
   'Thứ Hai',

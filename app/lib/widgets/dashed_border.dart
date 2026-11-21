@@ -2,12 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../core/theme.dart';
+
 /// Vien net dut bo goc, dung cho ngay khong chi va o "Chup khoan moi".
 class DashedBorderPainter extends CustomPainter {
   DashedBorderPainter({
     required this.color,
-    this.radius = 12,
-    this.strokeWidth = 1.2,
+    this.radius = AppRadius.sm,
+    this.strokeWidth = 1,
     this.dash = 4,
     this.gap = 3,
   });
@@ -50,8 +52,8 @@ class DashedBox extends StatelessWidget {
   const DashedBox({
     super.key,
     required this.child,
-    this.color = const Color(0xFFC9C2B8),
-    this.radius = 12,
+    this.color = AppColors.inkMuted48,
+    this.radius = AppRadius.sm,
   });
 
   final Widget child;

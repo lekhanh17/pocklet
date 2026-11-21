@@ -17,25 +17,21 @@ class ComingSoonScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
     return SafeArea(
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 56, color: AppColors.accent),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
+              Icon(icon, size: 48, color: AppColors.inkMuted48),
+              const SizedBox(height: AppSpacing.sm),
+              Text(title, style: AppText.displayMd),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 'Màn này sẽ làm ở đợt sau ($requirements).',
                 textAlign: TextAlign.center,
-                style: text.bodyMedium?.copyWith(color: AppColors.textMuted),
+                style: AppText.body.copyWith(color: AppColors.inkMuted48),
               ),
             ],
           ),

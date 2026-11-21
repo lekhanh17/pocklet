@@ -1,5 +1,5 @@
-/// Cac ham xu ly ngay thang. Ngay cua khoan chi tinh theo gio Viet Nam (BR-02);
-/// app chay tren dien thoai o Viet Nam nen dung gio local.
+// Cac ham xu ly ngay thang. Ngay cua khoan chi tinh theo gio Viet Nam (BR-02);
+// app chay tren dien thoai o Viet Nam nen dung gio local.
 
 DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
