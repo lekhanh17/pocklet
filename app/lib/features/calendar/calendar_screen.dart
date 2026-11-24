@@ -13,6 +13,8 @@ import '../../widgets/async_view.dart';
 import '../../widgets/dashed_border.dart';
 import '../../widgets/photo_thumb.dart';
 import '../../widgets/pressable.dart';
+import '../../widgets/section_card.dart';
+import '../../widgets/segmented_control.dart';
 import '../photo_viewer/photo_viewer_screen.dart';
 
 /// Man Lịch (dac ta muc 5.1, FR-13 den FR-15).
@@ -23,49 +25,86 @@ class CalendarScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(visibleMonthProvider);
     final monthData = ref.watch(calendarMonthProvider(month));
+    final mode = ref.watch(calendarViewModeProvider);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     void previous() => showCalendarMonth(ref, DateTime(month.year, month.month - 1));
     void next() => showCalendarMonth(ref, DateTime(month.year, month.month + 1));
 
-    return SafeArea(
-      child: RefreshIndicator.adaptive(
-        onRefresh: () async {
-          ref.invalidate(calendarMonthProvider(month));
-          ref.invalidate(dayExpensesProvider(ref.read(selectedDateProvider)));
-          await ref.read(calendarMonthProvider(month).future);
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.xl,
+    return RefreshIndicator.adaptive(
+      onRefresh: () async {
+        refreshExpenseData(ref);
+        await ref.read(calendarMonthProvider(month).future);
+      },
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverAppBar.large(
+            title: const Text('Lịch'),
+            actions: [
+              IconButton(
+                tooltip: 'Tìm kiếm',
+                // TODO(FR-23): mo man Tim kiem
+                onPressed: () => showComingSoon(context, 'Tìm kiếm'),
+                icon: const Icon(Icons.search),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ],
           ),
-          children: [
-            _CalendarHeader(
-              month: month,
-              data: monthData.valueOrNull,
-              onPrevious: previous,
-              onNext: next,
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.md, 0, AppSpacing.md, bottomInset + AppSpacing.xl,
             ),
-            const SizedBox(height: AppSpacing.sm),
-            const Center(child: _ViewModeSwitch()),
-            const SizedBox(height: AppSpacing.md),
-            // Vuot ngang luoi de doi thang
-            GestureDetector(
-              onHorizontalDragEnd: (details) {
-                final velocity = details.primaryVelocity ?? 0;
-                if (velocity < -250) next();
-                if (velocity > 250) previous();
-              },
-              child: AsyncView<CalendarMonth>(
-                value: monthData,
-                loadingHeight: 360,
-                onRetry: () => ref.invalidate(calendarMonthProvider(month)),
-                builder: (data) => _MonthGrid(month: month, data: data),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _CalendarHeader(
+                    month: month,
+                    data: monthData.valueOrNull,
+                    onPrevious: previous,
+                    onNext: next,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Center(
+                    child: SizedBox(
+                      width: 240,
+                      child: AppSegmentedControl<CalendarViewMode>(
+                        segments: const {
+                          CalendarViewMode.photo: 'Ảnh',
+                          CalendarViewMode.amount: 'Số tiền',
+                        },
+                        selected: mode,
+                        onChanged: (value) =>
+                            ref.read(calendarViewModeProvider.notifier).set(value),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  // Vuot ngang luoi de doi thang
+                  SectionCard(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    child: GestureDetector(
+                      onHorizontalDragEnd: (details) {
+                        final velocity = details.primaryVelocity ?? 0;
+                        if (velocity < -250) next();
+                        if (velocity > 250) previous();
+                      },
+                      child: AsyncView<CalendarMonth>(
+                        value: monthData,
+                        loadingHeight: 360,
+                        onRetry: () => ref.invalidate(calendarMonthProvider(month)),
+                        builder: (data) => _MonthGrid(month: month, data: data),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const _DayDetail(),
+                ],
               ),
             ),
-            const SizedBox(height: AppSpacing.xl),
-            const _DayDetail(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -118,41 +157,7 @@ class _CalendarHeader extends StatelessWidget {
           onPressed: onNext,
           icon: const Icon(Icons.chevron_right),
         ),
-        IconButton(
-          tooltip: 'Tìm kiếm',
-          // TODO(FR-23): mo man Tim kiem
-          onPressed: () => showComingSoon(context, 'Tìm kiếm'),
-          icon: const Icon(Icons.search),
-        ),
       ],
-    );
-  }
-}
-
-class _ViewModeSwitch extends ConsumerWidget {
-  const _ViewModeSwitch();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(calendarViewModeProvider);
-
-    return SegmentedButton<CalendarViewMode>(
-      showSelectedIcon: false,
-      segments: const [
-        ButtonSegment(
-          value: CalendarViewMode.photo,
-          icon: Icon(Icons.photo_outlined, size: 18),
-          label: Text('Ảnh'),
-        ),
-        ButtonSegment(
-          value: CalendarViewMode.amount,
-          icon: Icon(Icons.payments_outlined, size: 18),
-          label: Text('Số tiền'),
-        ),
-      ],
-      selected: {mode},
-      onSelectionChanged: (selection) =>
-          ref.read(calendarViewModeProvider.notifier).set(selection.first),
     );
   }
 }
@@ -263,7 +268,6 @@ class _DayCell extends StatelessWidget {
     final day = info;
     final cover = mode == CalendarViewMode.photo ? day?.coverPhotoId : null;
     Widget content;
-    var showHairline = false;
 
     if (isFuture) {
       // Ngay tuong lai: chi co so, mau nhat
@@ -312,9 +316,8 @@ class _DayCell extends StatelessWidget {
       // O khong anh (hoac kieu xem So tien)
       final level = mode == CalendarViewMode.amount ? _amountLevel(day.total) : 0;
       final background = level == 0
-          ? AppColors.canvas
+          ? AppColors.parchment
           : AppColors.ink.withAlpha(_amountAlpha[level]);
-      showHairline = level == 0;
       content = ColoredBox(
         color: background,
         child: _DayLabels(
@@ -326,18 +329,14 @@ class _DayCell extends StatelessWidget {
       );
     }
 
-    final Border? border;
-    if (isSelected) {
-      border = Border.all(color: AppColors.primaryFocus, width: 2);
-    } else if (showHairline) {
-      border = Border.all(color: AppColors.hairline);
-    } else {
-      border = null;
-    }
+    final border =
+        isSelected ? Border.all(color: AppColors.primaryFocus, width: 2) : null;
 
     return Pressable(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -477,12 +476,32 @@ class _DayDetail extends ConsumerWidget {
                 },
               ),
             if (withoutPhoto.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.md),
-              for (final expense in withoutPhoto)
-                _NoPhotoRow(
-                  expense: expense,
-                  category: categories[expense.categoryId] ?? ExpenseCategory.unknown,
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Không có ảnh',
+                style: AppText.captionStrong.copyWith(color: AppColors.inkMuted48),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              SectionCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < withoutPhoto.length; i++) ...[
+                      if (i > 0)
+                        const Divider(
+                          height: 1,
+                          indent: 68,
+                          color: AppColors.hairline,
+                        ),
+                      _NoPhotoRow(
+                        expense: withoutPhoto[i],
+                        category: categories[withoutPhoto[i].categoryId] ??
+                            ExpenseCategory.unknown,
+                      ),
+                    ],
+                  ],
                 ),
+              ),
             ],
           ],
         );
@@ -563,72 +582,64 @@ class _NoPhotoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Pressable(
-        // TODO(FR-08): mo man Sua khoan chi
-        onTap: () => showComingSoon(context, 'Sửa khoản chi'),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md, AppSpacing.sm, AppSpacing.xxs, AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.canvas,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.hairline),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: category.color.withAlpha(30),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(category.icon, color: category.color, size: 20),
+    return Pressable(
+      // TODO(FR-08): mo man Sua khoan chi
+      onTap: () => showComingSoon(context, 'Sửa khoản chi'),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md, AppSpacing.sm, AppSpacing.xxs, AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: category.color.withAlpha(30),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      expense.note ?? category.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.bodyStrong,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${category.name} · ${formatTime(expense.spentAt)}',
-                      style: AppText.finePrint.copyWith(color: AppColors.inkMuted48),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              child: Icon(category.icon, color: category.color, size: 20),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.sm),
-                    child: Text(formatVnd(expense.amount), style: AppText.captionStrong),
+                  Text(
+                    expense.note ?? category.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.bodyStrong,
                   ),
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                    ),
-                    // TODO(FR-10): them anh cho khoan chi
-                    onPressed: () => showComingSoon(context, 'Thêm ảnh'),
-                    icon: const Icon(Icons.add_a_photo_outlined, size: 16),
-                    label: const Text('Thêm ảnh'),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${category.name} · ${formatTime(expense.spentAt)}',
+                    style: AppText.finePrint.copyWith(color: AppColors.inkMuted48),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
+                  child: Text(formatVnd(expense.amount), style: AppText.captionStrong),
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                  ),
+                  // TODO(FR-10): them anh cho khoan chi
+                  onPressed: () => showComingSoon(context, 'Thêm ảnh'),
+                  icon: const Icon(Icons.add_a_photo_outlined, size: 16),
+                  label: const Text('Thêm ảnh'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

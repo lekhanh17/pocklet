@@ -1,46 +1,59 @@
-import 'package:flutter/foundation.dart';
+// Ban Flutter moi chuyen CupertinoPageTransitionsBuilder sang thu vien cupertino
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// Giao dien theo DESIGN-apple.md:
-// - Chi MOT mau tuong tac: AppColors.primary (#0066cc).
-// - Khong do bong, khong gradient trang tri; phan cap bang mau nen + vien hairline.
-// - Thang dam chu 400 / 600 (khong dung 500, 800).
+// Giao dien am ap kieu game nuoi thu (dot 4):
+// - Nen kem, chu nau, MOT mau tuong tac la xanh la (AppColors.primary).
+// - Phong cua pet dung bo mau rieng (room*), con lai dung chung token.
+// - Font Nunito bo tron; tieu de dam (800) cho cam giac de thuong.
 
 /// Token mau.
 class AppColors {
   AppColors._();
 
-  // Tuong tac (link, nut, focus)
-  static const primary = Color(0xFF0066CC);
-  static const primaryFocus = Color(0xFF0071E3);
-  static const primaryOnDark = Color(0xFF2997FF);
+  // Tuong tac (link, nut, focus). Chu trang tren #3B6D11 dat tuong phan > 4.5:1
+  static const primary = Color(0xFF3B6D11);
+  static const primaryFocus = Color(0xFF639922);
+  static const primaryOnDark = Color(0xFFC0DD97);
 
-  // Chu
-  static const ink = Color(0xFF1D1D1F);
-  static const inkMuted80 = Color(0xFF333333);
-  static const inkMuted48 = Color(0xFF7A7A7A);
+  // Chu (nau)
+  static const ink = Color(0xFF412402);
+  static const inkMuted80 = Color(0xFF633806);
+  static const inkMuted48 = Color(0xFF7D5A36);
   static const bodyOnDark = Color(0xFFFFFFFF);
-  static const bodyMuted = Color(0xFFCCCCCC);
+  static const bodyMuted = Color(0xFFE8D9C4);
 
   // Be mat
-  static const canvas = Color(0xFFFFFFFF);
-  static const parchment = Color(0xFFF5F5F7);
-  static const pearl = Color(0xFFFAFAFC);
-  static const tile1 = Color(0xFF272729);
+  static const canvas = Color(0xFFFFFCF6);
+  static const parchment = Color(0xFFFBF1E1);
+  static const pearl = Color(0xFFFFF8EE);
+  static const tile1 = Color(0xFF2E2622);
   static const surfaceBlack = Color(0xFF000000);
 
-  /// #d2d2d7 o ~64% alpha: chip tron / nhan de len anh.
-  static const chipTranslucent = Color(0xA3D2D2D7);
+  /// Kem 90%: chip / nhan de len anh.
+  static const chipTranslucent = Color(0xE6FFF8EE);
 
   // Duong ke
-  static const hairline = Color(0xFFE0E0E0);
-  static const dividerSoft = Color(0xFFF0F0F0);
+  static const hairline = Color(0xFFEAD3B0);
+  static const dividerSoft = Color(0xFFF3E4CC);
 
-  // Trang thai ngan sach (BR-04). File thiet ke khong dinh nghia mau trang thai
-  // nen chi dung o nhan "sap het" / "vuot", khong dung cho phan tu tuong tac.
+  // Trang thai ngan sach (BR-04), chi dung cho nhan, khong dung cho nut
   static const warning = Color(0xFFB25000);
-  static const danger = Color(0xFFD70015);
+  static const danger = Color(0xFFC62828);
+
+  // Phong cua pet
+  static const roomWall = Color(0xFFFFF4E2);
+  static const roomWindow = Color(0xFFB5D4F4);
+  static const roomWindowFrame = Color(0xFFFFFFFF);
+  static const roomCurtain = Color(0xFFC0DD97);
+  static const roomCurtainShade = Color(0xFF97C459);
+  static const roomFloor = Color(0xFFF6DDB0);
+  static const roomFloorLine = Color(0xFFE9C58C);
+  static const roomRug = Color(0xFFEF9F27);
+  static const roomTrim = Color(0xFF854F0B);
+  static const roomBorder = Color(0xFFFAC775);
+  static const coin = Color(0xFFEF9F27);
 }
 
 /// Bo goc.
@@ -67,52 +80,38 @@ class AppSpacing {
   static const double xxl = 48;
 }
 
-/// Kieu chu. Khong khai bao fontFamily: font lay tu theme
-/// (SF Pro tren iOS, Inter tren Android - ban thay the gan nhat theo file thiet ke).
+/// Kieu chu. Khong khai bao fontFamily: font lay tu theme (Nunito).
 class AppText {
   AppText._();
 
   static const displayLg = TextStyle(
-    fontSize: 40, fontWeight: FontWeight.w600, height: 1.1, letterSpacing: 0,
-    color: AppColors.ink,
+    fontSize: 40, fontWeight: FontWeight.w800, height: 1.1, color: AppColors.ink,
   );
   static const displayMd = TextStyle(
-    fontSize: 34, fontWeight: FontWeight.w600, height: 1.2, letterSpacing: -0.374,
-    color: AppColors.ink,
+    fontSize: 32, fontWeight: FontWeight.w800, height: 1.2, color: AppColors.ink,
   );
   static const tagline = TextStyle(
-    fontSize: 21, fontWeight: FontWeight.w600, height: 1.19, letterSpacing: 0.231,
-    color: AppColors.ink,
+    fontSize: 20, fontWeight: FontWeight.w800, height: 1.2, color: AppColors.ink,
   );
   static const bodyStrong = TextStyle(
-    fontSize: 17, fontWeight: FontWeight.w600, height: 1.24, letterSpacing: -0.374,
-    color: AppColors.ink,
+    fontSize: 17, fontWeight: FontWeight.w700, height: 1.25, color: AppColors.ink,
   );
   static const body = TextStyle(
-    fontSize: 17, fontWeight: FontWeight.w400, height: 1.47, letterSpacing: -0.374,
-    color: AppColors.ink,
+    fontSize: 17, fontWeight: FontWeight.w400, height: 1.45, color: AppColors.ink,
   );
   static const caption = TextStyle(
-    fontSize: 14, fontWeight: FontWeight.w400, height: 1.43, letterSpacing: -0.224,
-    color: AppColors.ink,
+    fontSize: 14, fontWeight: FontWeight.w400, height: 1.4, color: AppColors.ink,
   );
   static const captionStrong = TextStyle(
-    fontSize: 14, fontWeight: FontWeight.w600, height: 1.29, letterSpacing: -0.224,
-    color: AppColors.ink,
+    fontSize: 14, fontWeight: FontWeight.w700, height: 1.3, color: AppColors.ink,
   );
   static const finePrint = TextStyle(
-    fontSize: 12, fontWeight: FontWeight.w400, height: 1.0, letterSpacing: -0.12,
-    color: AppColors.ink,
+    fontSize: 12, fontWeight: FontWeight.w400, height: 1.15, color: AppColors.ink,
   );
   static const micro = TextStyle(
-    fontSize: 10, fontWeight: FontWeight.w400, height: 1.3, letterSpacing: -0.08,
-    color: AppColors.ink,
+    fontSize: 10, fontWeight: FontWeight.w400, height: 1.3, color: AppColors.ink,
   );
 }
-
-bool get _isApplePlatform =>
-    defaultTargetPlatform == TargetPlatform.iOS ||
-    defaultTargetPlatform == TargetPlatform.macOS;
 
 TextTheme _buildTextTheme() {
   const theme = TextTheme(
@@ -120,20 +119,19 @@ TextTheme _buildTextTheme() {
     displayMedium: AppText.displayLg,
     displaySmall: AppText.displayLg,
     headlineLarge: AppText.displayLg,
-    headlineMedium: AppText.displayMd,
+    headlineMedium: AppText.displayMd, // tieu de lon cua SliverAppBar.large
     headlineSmall: AppText.tagline,
-    titleLarge: AppText.tagline,
+    titleLarge: AppText.tagline, // tieu de AppBar khi thu nho
     titleMedium: AppText.bodyStrong,
     titleSmall: AppText.captionStrong,
     bodyLarge: AppText.body,
     bodyMedium: AppText.body, // chu mac dinh 17px
     bodySmall: AppText.caption,
-    labelLarge: AppText.body, // chu tren nut
+    labelLarge: AppText.bodyStrong, // chu tren nut
     labelMedium: AppText.caption,
     labelSmall: AppText.finePrint,
   );
-  // iOS dung san font he thong (SF Pro); Android dung Inter.
-  return _isApplePlatform ? theme : GoogleFonts.interTextTheme(theme);
+  return GoogleFonts.nunitoTextTheme(theme);
 }
 
 ThemeData buildAppTheme() {
@@ -160,13 +158,20 @@ ThemeData buildAppTheme() {
   final text = base.textTheme;
 
   return base.copyWith(
+    // Chuyen man kieu iOS tren ca Android: truot ngang, form truot tu duoi len
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
     appBarTheme: AppBarTheme(
       backgroundColor: AppColors.parchment,
+      surfaceTintColor: Colors.transparent,
       foregroundColor: AppColors.ink,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: true,
-      titleTextStyle: text.titleMedium,
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: AppColors.canvas,

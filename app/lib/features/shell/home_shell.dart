@@ -1,10 +1,13 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/coming_soon.dart';
 import '../../core/theme.dart';
 import '../../providers/app_providers.dart';
 import '../calendar/calendar_screen.dart';
+import '../capture/capture_flow.dart';
 import '../placeholder/coming_soon_screen.dart';
 import '../today/today_screen.dart';
 
@@ -20,6 +23,8 @@ class HomeShell extends ConsumerWidget {
     final index = ref.watch(tabIndexProvider);
 
     return Scaffold(
+      // Noi dung cuon xuyen xuong duoi thanh tab mo
+      extendBody: true,
       body: IndexedStack(
         index: index,
         children: const [
@@ -38,17 +43,14 @@ class HomeShell extends ConsumerWidget {
           ),
         ],
       ),
-      // Thanh duoi nen trang, chi ngan cach bang mot duong hairline
-      bottomNavigationBar: DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.hairline)),
-        ),
+      bottomNavigationBar: _FrostedBar(
         child: NavigationBar(
+          backgroundColor: Colors.transparent,
           selectedIndex: index,
           onDestinationSelected: (i) {
+            HapticFeedback.selectionClick();
             if (i == _captureIndex) {
-              // TODO(FR-10): mo man Camera
-              showComingSoon(context, 'Camera');
+              startCaptureFlow(context, ref);
               return;
             }
             ref.read(tabIndexProvider.notifier).select(i);
@@ -85,6 +87,29 @@ class HomeShell extends ConsumerWidget {
   }
 }
 
+/// Nen mo (frosted glass): parchment 80% + blur, ngan cach bang mot duong hairline.
+class _FrostedBar extends StatelessWidget {
+  const _FrostedBar({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.parchment.withAlpha(204),
+            border: const Border(top: BorderSide(color: AppColors.hairline)),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
 /// Nut Chup: vien thuoc xanh, thao tac chinh cua app.
 class _CaptureIcon extends StatelessWidget {
   const _CaptureIcon();
@@ -92,8 +117,8 @@ class _CaptureIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 52,
-      height: 34,
+      width: 56,
+      height: 36,
       decoration: BoxDecoration(
         color: AppColors.primary,
         borderRadius: BorderRadius.circular(AppRadius.pill),

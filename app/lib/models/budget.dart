@@ -32,6 +32,28 @@ class BudgetLine {
   }
 }
 
+/// Canh bao ngan sach tra ve ngay sau khi luu khoan chi (FR-18, BR-04).
+class BudgetAlert {
+  const BudgetAlert({
+    this.categoryId,
+    required this.level,
+    required this.percent,
+  });
+
+  /// Null la ngan sach tong cua thang.
+  final int? categoryId;
+  final BudgetLevel level;
+  final int percent;
+
+  factory BudgetAlert.fromJson(Map<String, dynamic> json) {
+    return BudgetAlert(
+      categoryId: json['categoryId'] as int?,
+      level: json['level'] == 'over' ? BudgetLevel.over : BudgetLevel.warning,
+      percent: (json['percent'] as num).toInt(),
+    );
+  }
+}
+
 /// Ngan sach cua mot thang kem so da chi (GET /api/budgets).
 class BudgetOverview {
   const BudgetOverview({

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/format.dart';
 import '../core/theme.dart';
 import '../models/category.dart';
+import '../providers/app_providers.dart';
 
 const _palette = [
   Color(0xFFE07A5F),
@@ -15,14 +17,10 @@ const _palette = [
 
 Color placeholderColorFor(int photoId) => _palette[photoId % _palette.length];
 
-/// Anh cua khoan chi. Hien tai la khung soc (giong mockup) vi chua co API.
-///
-/// TODO(API): thay CustomPaint bang
-///   Image.network('$baseUrl/api/photos/$photoId',
-///       headers: {'Authorization': 'Bearer $token'}, fit: BoxFit.cover)
-/// Chi can sua o day, moi man hinh deu dung PhotoThumb.
+/// Anh cua khoan chi. Lay nguon anh tu repository (anh that neu co);
+/// chua co anh that (du lieu mau) thi ve khung soc giong mockup.
 /// PhotoThumb phai nam trong khung co kich thuoc xac dinh.
-class PhotoThumb extends StatelessWidget {
+class PhotoThumb extends ConsumerWidget {
   const PhotoThumb({
     super.key,
     required this.photoId,
@@ -37,23 +35,56 @@ class PhotoThumb extends StatelessWidget {
   final bool showIcon;
 
   @override
-  Widget build(BuildContext context) {
-    final color = placeholderColorFor(photoId);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final image = ref.watch(expenseRepositoryProvider).photoImage(photoId);
+    final placeholder = _StripedPlaceholder(
+      photoId: photoId,
+      isReceipt: isReceipt,
+      showIcon: showIcon,
+    );
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
-      child: CustomPaint(
-        painter: _StripePainter(color),
-        child: SizedBox.expand(
-          child: showIcon
-              ? Center(
-                  child: Icon(
-                    isReceipt ? Icons.receipt_long : Icons.image_outlined,
-                    color: color.withAlpha(220),
-                    size: 28,
-                  ),
-                )
-              : null,
-        ),
+      child: image == null
+          ? placeholder
+          : Image(
+              image: image,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              gaplessPlayback: true,
+              errorBuilder: (context, error, stack) => placeholder,
+            ),
+    );
+  }
+}
+
+class _StripedPlaceholder extends StatelessWidget {
+  const _StripedPlaceholder({
+    required this.photoId,
+    required this.isReceipt,
+    required this.showIcon,
+  });
+
+  final int photoId;
+  final bool isReceipt;
+  final bool showIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = placeholderColorFor(photoId);
+    return CustomPaint(
+      painter: _StripePainter(color),
+      child: SizedBox.expand(
+        child: showIcon
+            ? Center(
+                child: Icon(
+                  isReceipt ? Icons.receipt_long : Icons.image_outlined,
+                  color: color.withAlpha(220),
+                  size: 28,
+                ),
+              )
+            : null,
       ),
     );
   }

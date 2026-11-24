@@ -125,6 +125,14 @@ void showCalendarMonth(WidgetRef ref, DateTime month) {
       .select(monthOf(today) == m ? today : m);
 }
 
+/// Tai lai moi du lieu phu thuoc khoan chi sau khi them, sua, xoa.
+void refreshExpenseData(WidgetRef ref) {
+  ref.invalidate(dayExpensesProvider);
+  ref.invalidate(calendarMonthProvider);
+  ref.invalidate(budgetOverviewProvider);
+  ref.invalidate(last7DaysProvider);
+}
+
 /// Mo tab Lich tai mot ngay (cham o ngay o Trang chu).
 void openDayInCalendar(WidgetRef ref, DateTime day) {
   ref.read(visibleMonthProvider.notifier).show(day);

@@ -9,8 +9,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   flutter_riverpod: ^2.6.1
   google_fonts: ^6.2.1
+  camera: ^0.11.0
+  image_picker: ^1.1.2
+  image: ^4.2.0
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:

@@ -13,16 +13,19 @@ const _weekdayNames = [
 /// Nhan cot cua luoi lich, tuan bat dau thu Hai (FR-13).
 const weekdayShortNames = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-/// 45000 -> "45.000 ₫"
-String formatVnd(num amount) {
+/// 45000 -> "45.000" (dau cham ngan nghin, BR-01)
+String formatGrouped(num amount) {
   final digits = amount.round().abs().toString();
   final buf = StringBuffer();
   for (var i = 0; i < digits.length; i++) {
     if (i > 0 && (digits.length - i) % 3 == 0) buf.write('.');
     buf.write(digits[i]);
   }
-  return '${amount < 0 ? '-' : ''}$buf ₫';
+  return '${amount < 0 ? '-' : ''}$buf';
 }
+
+/// 45000 -> "45.000 ₫"
+String formatVnd(num amount) => '${formatGrouped(amount)} ₫';
 
 /// Viet gon tren o lich: duoi 1 trieu la "180k", tu 1 trieu la "1,2tr".
 String formatShort(num amount) {

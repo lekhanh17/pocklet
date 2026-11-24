@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'dart:math';
+
+import 'package:flutter/painting.dart';
 
 import '../core/date_utils.dart';
 import '../models/budget.dart';
@@ -18,6 +21,12 @@ class MockExpenseRepository implements ExpenseRepository {
   int _nextExpenseId = 1;
   int _nextPhotoId = 3000;
 
+  /// Anh nguoi dung chup that: photoId -> duong dan file da nen.
+  final Map<int, String> _photoPaths = {};
+
+  /// BR-04: moi nguong chi bao mot lan moi thang. Khoa: nam-thang-danhmuc-muc.
+  final Set<String> _warned = {};
+
   static const _latency = Duration(milliseconds: 250);
 
   /// 8 danh muc mac dinh (FR-05).
@@ -32,9 +41,13 @@ class MockExpenseRepository implements ExpenseRepository {
     ExpenseCategory(id: 8, name: 'Khác', iconName: 'more_horiz', colorHex: '#78716C'),
   ];
 
-  /// Han muc mau: Ăn uống dat nguong 80% va Giải trí de vuot (FR-18).
-  static const _totalLimit = 5000000;
-  static const _categoryLimits = {1: 1000000, 2: 600000, 3: 1000000, 5: 100000};
+  /// Muc tieu thang mac dinh cua du lieu mau (pet thuong o muc "Khoe manh").
+  /// Nguoi dung doi trong phong pet; muc tieu thap (vi du 3 trieu) se lam pet gay di.
+  static const _totalLimit = 6000000;
+
+  /// Muc tieu nguoi dung tu dat: "nam-thang" -> so tien.
+  final Map<String, int> _totalLimitOverrides = {};
+  static const _categoryLimits = {1: 1500000, 2: 800000, 3: 2500000, 5: 250000};
 
   @override
   Future<List<ExpenseCategory>> getCategories() async {
@@ -83,6 +96,87 @@ class MockExpenseRepository implements ExpenseRepository {
   @override
   Future<BudgetOverview> getBudgets(DateTime month) async {
     await Future<void>.delayed(_latency);
+    return _budgetOverview(month);
+  }
+
+  @override
+  Future<void> setMonthlyBudget(DateTime month, int limit) async {
+    await Future<void>.delayed(_latency);
+    if (limit <= 0) throw ArgumentError('Mục tiêu phải lớn hơn 0');
+    _totalLimitOverrides['${month.year}-${month.month}'] = limit;
+    // BR-04: doi han muc thi duoc canh bao lai tu dau
+    _warned.removeWhere((k) => k.startsWith('${month.year}-${month.month}-null-'));
+  }
+
+  @override
+  Future<ExpenseSaveResult> addExpense(ExpenseDraft draft) async {
+    await Future<void>.delayed(_latency);
+    // Server la noi kiem tra cuoi cung (muc 8): BR-01, BR-02
+    if (draft.amount < 1 || draft.amount > maxExpenseAmount) {
+      throw ArgumentError('Số tiền phải từ 1 đến 1.000.000.000 ₫');
+    }
+    if (draft.spentAt.isAfter(_clock().add(const Duration(minutes: 1)))) {
+      throw ArgumentError('Không chọn được thời điểm sau hiện tại');
+    }
+
+    final expense = Expense(
+      id: _nextExpenseId++,
+      categoryId: draft.categoryId,
+      amount: draft.amount,
+      spentAt: draft.spentAt,
+      note: draft.note,
+    );
+    final list = _monthData(draft.spentAt.year, draft.spentAt.month)..add(expense);
+    list.sort((a, b) => a.spentAt.compareTo(b.spentAt));
+
+    // Canh bao ngan sach tong va ngan sach cua danh muc vua chi (BR-04)
+    final overview = _budgetOverview(draft.spentAt);
+    final total = overview.total;
+    final alerts = <BudgetAlert>[];
+    for (final line in [if (total != null) total, ...overview.categories]) {
+      if (line.categoryId != null && line.categoryId != draft.categoryId) continue;
+      if (line.level == BudgetLevel.normal) continue;
+      final key = '${draft.spentAt.year}-${draft.spentAt.month}-${line.categoryId}-${line.level.name}';
+      if (_warned.add(key)) {
+        alerts.add(BudgetAlert(
+          categoryId: line.categoryId,
+          level: line.level,
+          percent: line.percent,
+        ));
+      }
+    }
+    return ExpenseSaveResult(expense: expense, budgetAlerts: alerts);
+  }
+
+  @override
+  Future<ExpensePhoto> uploadPhoto(
+    int expenseId,
+    String filePath, {
+    bool isReceipt = false,
+  }) async {
+    await Future<void>.delayed(_latency);
+    for (final list in _cache.values) {
+      final index = list.indexWhere((e) => e.id == expenseId);
+      if (index < 0) continue;
+      final expense = list[index];
+      if (expense.photos.length >= maxPhotosPerExpense) {
+        throw StateError('Khoản chi đã đủ $maxPhotosPerExpense ảnh'); // API tra 409
+      }
+      final photo = ExpensePhoto(id: _nextPhotoId++, isReceipt: isReceipt);
+      _photoPaths[photo.id] = filePath;
+      list[index] = expense.copyWith(photos: [...expense.photos, photo]);
+      return photo;
+    }
+    throw StateError('Không tìm thấy khoản chi $expenseId'); // API tra 404
+  }
+
+  @override
+  ImageProvider? photoImage(int photoId) {
+    final path = _photoPaths[photoId];
+    return path == null ? null : FileImage(File(path));
+  }
+
+  BudgetOverview _budgetOverview(DateTime month) {
     final items = _monthData(month.year, month.month);
     int spentOf(int? categoryId) => items
         .where((e) => categoryId == null || e.categoryId == categoryId)
@@ -90,7 +184,10 @@ class MockExpenseRepository implements ExpenseRepository {
 
     return BudgetOverview(
       month: monthOf(month),
-      total: BudgetLine(limit: _totalLimit, spent: spentOf(null)),
+      total: BudgetLine(
+        limit: _totalLimitOverrides['${month.year}-${month.month}'] ?? _totalLimit,
+        spent: spentOf(null),
+      ),
       categories: [
         for (final entry in _categoryLimits.entries)
           BudgetLine(
