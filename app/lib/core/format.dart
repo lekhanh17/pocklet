@@ -30,6 +30,8 @@ String formatVnd(num amount) => '${formatGrouped(amount)} ₫';
 /// Viet gon tren o lich: duoi 1 trieu la "180k", tu 1 trieu la "1,2tr".
 String formatShort(num amount) {
   if (amount <= 0) return '0';
+  // Duoi 1.000 giu nguyen so: 500 ₫ khong duoc hien thanh "1k" hay "0k"
+  if (amount < 1000) return '${amount.round()}';
   final k = (amount / 1000).round();
   if (k < 1000) return '${k}k';
   var tr = (amount / 1000000).toStringAsFixed(1).replaceAll('.', ',');
@@ -58,5 +60,6 @@ String formatMonth(DateTime m) => 'Tháng ${m.month}, ${m.year}';
 /// Chu cai dau cua ten hien thi, dung cho nut Tai khoan.
 String initialOf(String name) {
   final t = name.trim();
-  return t.isEmpty ? '?' : t.substring(0, 1).toUpperCase();
+  // Lay theo rune (khong theo don vi UTF-16) de ten bat dau bang emoji khong bi cat doi
+  return t.isEmpty ? '?' : String.fromCharCode(t.runes.first).toUpperCase();
 }

@@ -4,4 +4,7 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Ban debug goi API qua http://10.0.2.2:5080 hoac http://<IP laptop>:5080 trong mang LAN.
+         Chi bat o debug (NFR-09); ban release phai dung HTTPS. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

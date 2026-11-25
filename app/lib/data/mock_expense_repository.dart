@@ -18,6 +18,9 @@ class MockExpenseRepository implements ExpenseRepository {
 
   final DateTime Function() _clock;
   final Map<String, List<Expense>> _cache = {};
+
+  /// "nam-thang" -> ngay cuoi cung da sinh du lieu mau cua thang do.
+  final Map<String, DateTime> _generatedUntil = {};
   int _nextExpenseId = 1;
   int _nextPhotoId = 3000;
 
@@ -199,20 +202,40 @@ class MockExpenseRepository implements ExpenseRepository {
     );
   }
 
+  /// Du lieu cua mot thang (ca khoan chi nguoi dung vua them).
+  /// Thang hien tai: qua nua dem thi sinh them du lieu mau cho ngay moi, khong
+  /// sinh lai ca thang, de khoan chi nguoi dung da them trong phien van con.
   List<Expense> _monthData(int year, int month) {
-    return _cache.putIfAbsent('$year-$month', () => _generate(year, month));
-  }
-
-  List<Expense> _generate(int year, int month) {
+    final key = '$year-$month';
+    final items = _cache.putIfAbsent(key, () => <Expense>[]);
     final now = _clock();
     final today = dateOnly(now);
-    final rnd = Random(year * 100 + month);
+    final lastDay = DateTime(year, month, daysInMonth(year, month));
+    final target = today.isBefore(lastDay) ? today : lastDay;
+    final done = _generatedUntil[key];
+
+    // Thang tuong lai (target truoc ngay 1) thi chua co gi de sinh
+    if (target.isBefore(DateTime(year, month, 1))) return items;
+    if (done != null && !target.isAfter(done)) return items;
+
+    items
+      ..addAll(_generate(year, month, done == null ? 1 : done.day + 1, target.day, now))
+      ..sort((a, b) => a.spentAt.compareTo(b.spentAt));
+    _generatedUntil[key] = target;
+    return items;
+  }
+
+  /// Sinh du lieu mau tu ngay [fromDay] den [toDay] cua thang.
+  List<Expense> _generate(int year, int month, int fromDay, int toDay, DateTime now) {
+    final today = dateOnly(now);
     final items = <Expense>[];
 
-    for (var d = 1; d <= daysInMonth(year, month); d++) {
+    for (var d = fromDay; d <= toDay; d++) {
       final day = DateTime(year, month, d);
       if (day.isAfter(today)) break;
       final isToday = isSameDay(day, today);
+      // Seed theo tung ngay: sinh them ngay moi khong lam doi du lieu cac ngay truoc
+      final rnd = Random(year * 10000 + month * 100 + d);
 
       final picks = <_Sample>[
         if (d == 5) const _Sample(4, 'Tiền điện', 300000, 450000, receipt: true),
@@ -250,7 +273,6 @@ class MockExpenseRepository implements ExpenseRepository {
       }
     }
 
-    items.sort((a, b) => a.spentAt.compareTo(b.spentAt));
     return items;
   }
 }

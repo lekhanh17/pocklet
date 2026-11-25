@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -43,18 +45,36 @@ class PhotoThumb extends ConsumerWidget {
       showIcon: showIcon,
     );
 
+    if (image == null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: placeholder,
+      );
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
-      child: image == null
-          ? placeholder
-          : Image(
-              image: image,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              gaplessPlayback: true,
-              errorBuilder: (context, error, stack) => placeholder,
-            ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Giai ma anh vua du cho o hien thi (anh goc 1280 px, o lich chi ~50 px):
+          // 31 o lich giai ma ca anh goc ton ~150 MB RAM, thu nho chi con ~10 MB.
+          // Chi biet ty le anh sau khi giai ma, nen chon chieu ngang du phu kin o
+          // (BoxFit.cover) voi anh ngang toi 2:1: max(rong, cao x 2).
+          // Khong phong to qua kich thuoc goc (ResizeImage.allowUpscaling mac dinh false),
+          // nen man xem anh toan man hinh van giai ma toi da 1280 px.
+          final dpr = MediaQuery.devicePixelRatioOf(context);
+          final side = math.max(constraints.maxWidth, constraints.maxHeight * 2) * dpr;
+          final cacheWidth = side.isFinite && side >= 1 ? side.round() : null;
+          return Image(
+            image: ResizeImage.resizeIfNeeded(cacheWidth, null, image),
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            gaplessPlayback: true,
+            errorBuilder: (context, error, stack) => placeholder,
+          );
+        },
+      ),
     );
   }
 }

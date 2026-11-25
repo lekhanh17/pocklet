@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/errors.dart';
 import '../core/theme.dart';
 
 /// Hien thi AsyncValue: dang tai, loi (kem nut Thu lai) hoac du lieu.
@@ -42,7 +43,8 @@ class AsyncView<T> extends StatelessWidget {
             const Text('Không tải được dữ liệu', style: AppText.bodyStrong),
             const SizedBox(height: AppSpacing.xxs),
             Text(
-              '$error',
+              // Ban debug hien loi goc de sua; ban release hien loi de hieu cho nguoi dung.
+              friendlyError(error),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: AppText.caption.copyWith(color: AppColors.inkMuted48),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/errors.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../providers/app_providers.dart';
@@ -63,7 +64,7 @@ class _BudgetGoalSheetState extends ConsumerState<_BudgetGoalSheet> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không lưu được mục tiêu: $e')),
+        SnackBar(content: Text('Không lưu được mục tiêu. ${friendlyError(e)}')),
       );
     }
   }

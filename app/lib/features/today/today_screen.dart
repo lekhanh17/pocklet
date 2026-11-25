@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/coming_soon.dart';
 import '../../core/date_utils.dart';
+import '../../core/errors.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../models/budget.dart';
@@ -35,7 +36,9 @@ class TodayScreen extends ConsumerWidget {
     final pet = ref.watch(petKindProvider);
     return pet.when(
       loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-      error: (error, _) => Center(child: Text('Không tải được bạn đồng hành: $error')),
+      error: (error, _) => Center(
+        child: Text('Không tải được bạn đồng hành. ${friendlyError(error)}'),
+      ),
       data: (kind) => kind == null
           ? PetPickerScreen(
               onChosen: (k) => ref.read(petKindProvider.notifier).choose(k),
@@ -52,7 +55,8 @@ class _PetRoom extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final today = dateOnly(DateTime.now());
+    // Lay tu todayProvider (khong goi DateTime.now()) de qua nua dem phong tu sang ngay moi
+    final today = ref.watch(todayProvider);
     final month = monthOf(today);
     final budget = ref.watch(budgetOverviewProvider(month)).valueOrNull;
     final week = ref.watch(last7DaysProvider).valueOrNull;
@@ -202,7 +206,8 @@ class _RoomScene extends ConsumerWidget {
             top: top + AppSpacing.xs,
             child: Row(
               children: [
-                const SizedBox(width: 36),
+                // Can bang voi nut tai khoan ben phai de nhan thang nam giua
+                const SizedBox(width: _AccountButton.size),
                 Expanded(
                   child: Center(
                     child: _RoomPill(
@@ -527,6 +532,9 @@ class _RoomButton extends StatelessWidget {
 class _AccountButton extends ConsumerWidget {
   const _AccountButton();
 
+  /// Vung cham 48 dp (NFR-07); hinh tron nhin thay van 36.
+  static const double size = 48;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final name = ref.watch(currentUserNameProvider);
@@ -534,16 +542,21 @@ class _AccountButton extends ConsumerWidget {
       semanticLabel: 'Tài khoản',
       // TODO(FR-04): mo man Tai khoan
       onTap: () => showComingSoon(context, 'Tài khoản'),
-      child: Container(
-        width: 36,
-        height: 36,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.canvas,
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.roomBorder, width: 1.5),
+      child: SizedBox.square(
+        dimension: size,
+        child: Center(
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.canvas,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.roomBorder, width: 1.5),
+            ),
+            child: Text(initialOf(name), style: AppText.captionStrong),
+          ),
         ),
-        child: Text(initialOf(name), style: AppText.captionStrong),
       ),
     );
   }

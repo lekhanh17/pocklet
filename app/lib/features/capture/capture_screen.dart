@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/coming_soon.dart';
+import '../../core/image_compress.dart';
 import '../../core/theme.dart';
 import '../../models/expense.dart';
 import '../../widgets/photo_thumb.dart';
@@ -36,6 +38,10 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
 
   /// Anh vua chup / chon dang xem lai. Null la dang o che do chup.
   List<String>? _reviewPaths;
+
+  /// Form Them khoan chi dang mo de len man nay: camera phai dung yen
+  /// (ke ca khi app vua quay lai tu nen va camera duoc mo lai).
+  bool _formOpen = false;
   final _noteController = TextEditingController();
   final _noteFocus = FocusNode();
 
@@ -125,8 +131,9 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
       _controller = controller;
       _error = null;
     });
-    // Dang xem lai anh thi tam dung khung xem truoc
-    if (_reviewing) await controller.pausePreview();
+    // Dang xem lai anh hoac dang o form thi tam dung khung xem truoc:
+    // khong de camera chay ngam (ton pin, den bao camera van sang)
+    if (_reviewing || _formOpen) await controller.pausePreview();
   }
 
   String _messageFor(CameraException e) {
@@ -197,7 +204,22 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
   }
 
   Future<void> _pickFromGallery() async {
-    final files = await ImagePicker().pickMultiImage(limit: maxPhotosPerExpense);
+    final List<XFile> files;
+    try {
+      // maxWidth/maxHeight: may tu doi HEIC sang JPEG va thu nho (xem pickerMaxSide)
+      files = await ImagePicker().pickMultiImage(
+        limit: maxPhotosPerExpense,
+        maxWidth: pickerMaxSide,
+        maxHeight: pickerMaxSide,
+      );
+    } on PlatformException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không mở được thư viện ảnh. Kiểm tra quyền trong Cài đặt.')),
+        );
+      }
+      return;
+    }
     if (files.isEmpty || !mounted) return;
     await _pausePreview();
     if (!mounted) return;
@@ -224,6 +246,7 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
   Future<void> _openForm() async {
     _noteFocus.unfocus();
     final paths = _reviewPaths ?? const <String>[];
+    _formOpen = true;
     if (!_reviewing) await _pausePreview();
     if (!mounted) return;
 
@@ -236,6 +259,7 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
         ),
       ),
     );
+    _formOpen = false;
     if (!mounted) return;
     if (result != null) {
       Navigator.of(context).pop(result);

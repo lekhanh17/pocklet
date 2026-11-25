@@ -26,10 +26,15 @@ class CalendarScreen extends ConsumerWidget {
     final month = ref.watch(visibleMonthProvider);
     final monthData = ref.watch(calendarMonthProvider(month));
     final mode = ref.watch(calendarViewModeProvider);
+    final today = ref.watch(todayProvider);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
+    // Khong cho sang thang tuong lai (moi ngay deu "chua toi"): ca nut lan vuot ngang
+    final nextMonth = DateTime(month.year, month.month + 1);
+    final hasNext = canShowMonth(nextMonth, today);
+
     void previous() => showCalendarMonth(ref, DateTime(month.year, month.month - 1));
-    void next() => showCalendarMonth(ref, DateTime(month.year, month.month + 1));
+    void next() => showCalendarMonth(ref, nextMonth);
 
     return RefreshIndicator.adaptive(
       onRefresh: () async {
@@ -63,7 +68,7 @@ class CalendarScreen extends ConsumerWidget {
                     month: month,
                     data: monthData.valueOrNull,
                     onPrevious: previous,
-                    onNext: next,
+                    onNext: hasNext ? next : null,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Center(
@@ -87,14 +92,14 @@ class CalendarScreen extends ConsumerWidget {
                     child: GestureDetector(
                       onHorizontalDragEnd: (details) {
                         final velocity = details.primaryVelocity ?? 0;
-                        if (velocity < -250) next();
+                        if (velocity < -250 && hasNext) next();
                         if (velocity > 250) previous();
                       },
                       child: AsyncView<CalendarMonth>(
                         value: monthData,
                         loadingHeight: 360,
                         onRetry: () => ref.invalidate(calendarMonthProvider(month)),
-                        builder: (data) => _MonthGrid(month: month, data: data),
+                        builder: (data) => _MonthGrid(month: month, data: data, today: today),
                       ),
                     ),
                   ),
@@ -125,7 +130,9 @@ class _CalendarHeader extends StatelessWidget {
   final DateTime month;
   final CalendarMonth? data;
   final VoidCallback onPrevious;
-  final VoidCallback onNext;
+
+  /// Null khi dang o thang hien tai: nut mo di, khong sang thang tuong lai.
+  final VoidCallback? onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -167,16 +174,17 @@ class _CalendarHeader extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _MonthGrid extends ConsumerWidget {
-  const _MonthGrid({required this.month, required this.data});
+  const _MonthGrid({required this.month, required this.data, required this.today});
 
   final DateTime month;
   final CalendarMonth data;
+  final DateTime today;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(selectedDateProvider);
+    // Khong watch ngay dang chon o day: chon ngay khac chi ve lai 2 o (xem _DayCell),
+    // khong dung lai ca luoi 42 o.
     final mode = ref.watch(calendarViewModeProvider);
-    final today = dateOnly(DateTime.now());
     final byDay = data.byDay;
 
     final leading = DateTime(month.year, month.month, 1).weekday - 1;
@@ -222,7 +230,6 @@ class _MonthGrid extends ConsumerWidget {
               info: byDay[dayNumber],
               mode: mode,
               isToday: isSameDay(date, today),
-              isSelected: isSameDay(date, selected),
               isFuture: date.isAfter(today),
               onTap: () => ref.read(selectedDateProvider.notifier).select(date),
             );
@@ -244,13 +251,12 @@ int _amountLevel(int total) {
 /// Do dam cua ink theo muc (don sac, khong them mau nhan thu hai).
 const _amountAlpha = [0, 18, 46, 110, 200];
 
-class _DayCell extends StatelessWidget {
+class _DayCell extends ConsumerWidget {
   const _DayCell({
     required this.date,
     required this.info,
     required this.mode,
     required this.isToday,
-    required this.isSelected,
     required this.isFuture,
     required this.onTap,
   });
@@ -259,12 +265,15 @@ class _DayCell extends StatelessWidget {
   final CalendarDay? info;
   final CalendarViewMode mode;
   final bool isToday;
-  final bool isSelected;
   final bool isFuture;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // select: o chi build lai khi CHINH no duoc chon / bo chon
+    final isSelected = ref.watch(
+      selectedDateProvider.select((selected) => isSameDay(selected, date)),
+    );
     final day = info;
     final cover = mode == CalendarViewMode.photo ? day?.coverPhotoId : null;
     Widget content;
@@ -333,7 +342,8 @@ class _DayCell extends StatelessWidget {
         isSelected ? Border.all(color: AppColors.primaryFocus, width: 2) : null;
 
     return Pressable(
-      onTap: onTap,
+      // Ngay tuong lai khong chon duoc (FR-13: lam mo)
+      onTap: isFuture ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
@@ -405,7 +415,7 @@ class _DayDetail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final day = ref.watch(selectedDateProvider);
-    final today = dateOnly(DateTime.now());
+    final today = ref.watch(todayProvider);
     final categories =
         ref.watch(categoryMapProvider).valueOrNull ?? const <int, ExpenseCategory>{};
 

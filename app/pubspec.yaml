@@ -12,8 +12,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   flutter_riverpod: ^2.6.1
-  google_fonts: ^6.2.1
-  camera: ^0.11.0
+  camera: 0.12.2
   image_picker: ^1.1.2
   image: ^4.2.0
   shared_preferences: ^2.3.2
@@ -25,3 +24,20 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Nunito dong goi san (giay phep OFL, assets/fonts/OFL.txt) thay cho google_fonts:
+  # khong phai tai font qua mang luc chay, khong nhay font o lan mo dau,
+  # va dung duoc khi demo khong co Internet.
+  fonts:
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Nunito-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Nunito-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Nunito-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Nunito-ExtraBold.ttf
+          weight: 800

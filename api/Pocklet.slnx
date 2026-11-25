@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Pocklet.Api/Pocklet.Api.csproj" />
+  <Project Path="Pocklet.Api.Tests/Pocklet.Api.Tests.csproj" />
+</Solution>

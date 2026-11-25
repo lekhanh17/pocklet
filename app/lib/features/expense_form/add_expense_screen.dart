@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/date_utils.dart';
+import '../../core/errors.dart';
 import '../../core/format.dart';
 import '../../core/image_compress.dart';
 import '../../core/theme.dart';
@@ -24,6 +25,9 @@ class _PendingPhoto {
 
   final String path;
   bool isReceipt = false;
+
+  /// File da nen (BR-05). Giu lai de bam "Thu lai" khong phai nen lai tu dau.
+  String? compressedPath;
 }
 
 /// Man Them khoan chi (dac ta muc 5.2; FR-07, FR-10, FR-12; luong 4.1).
@@ -65,8 +69,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
-    // An ban phim so khi dang go ghi chu
-    _noteFocus.addListener(() => setState(() {}));
+    // An ban phim so khi dang go ghi chu. Kiem tra mounted: focus doi ca luc man dang dong.
+    _noteFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -127,12 +133,27 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     final picker = ImagePicker();
     final paths = <String>[];
-    if (source == ImageSource.gallery && remaining > 1) {
-      final files = await picker.pickMultiImage(limit: remaining);
-      paths.addAll(files.take(remaining).map((f) => f.path));
-    } else {
-      final file = await picker.pickImage(source: source);
-      if (file != null) paths.add(file.path);
+    try {
+      // maxWidth/maxHeight: may tu doi HEIC sang JPEG va thu nho (xem pickerMaxSide)
+      if (source == ImageSource.gallery && remaining > 1) {
+        final files = await picker.pickMultiImage(
+          limit: remaining,
+          maxWidth: pickerMaxSide,
+          maxHeight: pickerMaxSide,
+        );
+        paths.addAll(files.take(remaining).map((f) => f.path));
+      } else {
+        final file = await picker.pickImage(
+          source: source,
+          maxWidth: pickerMaxSide,
+          maxHeight: pickerMaxSide,
+        );
+        if (file != null) paths.add(file.path);
+      }
+    } on PlatformException {
+      // Thuong la chua cap quyen camera / thu vien anh
+      if (mounted) _showMessage('Không mở được ${source == ImageSource.camera ? 'camera' : 'thư viện ảnh'}. Kiểm tra quyền trong Cài đặt.');
+      return;
     }
     if (!mounted || paths.isEmpty) return;
     setState(() => _photos.addAll(paths.map(_PendingPhoto.new)));
@@ -203,19 +224,32 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       // NFR-08: giu nguyen du lieu tren form de thu lai
       if (!mounted) return;
       setState(() => _saving = false);
-      _showMessage('Không lưu được khoản chi: $e');
+      _showMessage('Không lưu được khoản chi. ${friendlyError(e)}');
       return;
     }
 
     var pending = List<_PendingPhoto>.of(_photos);
+    var unreadable = 0;
     while (pending.isNotEmpty) {
       final failed = <_PendingPhoto>[];
       for (final photo in pending) {
+        // Buoc 1: nen (BR-05). Anh khong doc duoc thi bo qua: thu lai cung vo ich.
+        var compressed = photo.compressedPath;
+        if (compressed == null) {
+          try {
+            compressed = (await compressPhoto(photo.path)).path;
+            photo.compressedPath = compressed;
+          } catch (_) {
+            // PhotoUnreadableException (anh hong, dinh dang la) hoac file tam da bi xoa
+            unreadable++;
+            continue;
+          }
+        }
+        // Buoc 2: tai len. Loi o day thuong do mang -> cho thu lai.
         try {
-          final compressed = await compressPhoto(photo.path); // BR-05
           await repo.uploadPhoto(
             result.expense.id,
-            compressed.path,
+            compressed,
             isReceipt: photo.isReceipt,
           );
         } catch (_) {
@@ -231,7 +265,29 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     if (!mounted) return;
     refreshExpenseData(ref);
+    if (unreadable > 0) await _showUnreadable(unreadable);
+    if (!mounted) return;
     Navigator.of(context).pop(result);
+  }
+
+  /// Bao truoc khi dong form: snackbar o day se bi thong bao "Da luu" de len mat.
+  Future<void> _showUnreadable(int count) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bỏ qua ảnh không đọc được'),
+        content: Text(
+          'Khoản chi đã được lưu, nhưng $count ảnh bị hỏng hoặc có định dạng '
+          'không hỗ trợ nên không tải lên. Bạn có thể thêm ảnh khác sau.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đã hiểu'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<bool> _askRetry(int count) async {
@@ -488,19 +544,26 @@ class _PhotoItem extends StatelessWidget {
                   child: Image.file(File(photo.path), fit: BoxFit.cover, cacheWidth: 300),
                 ),
                 Positioned(
-                  top: 4,
-                  right: 4,
+                  top: 0,
+                  right: 0,
                   child: Pressable(
                     semanticLabel: 'Xoá ảnh',
                     onTap: enabled ? onRemove : null,
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: const BoxDecoration(
-                        color: AppColors.chipTranslucent,
-                        shape: BoxShape.circle,
+                    // Vung cham 44 dp (NFR-07) bao quanh nut tron 26 dp
+                    child: SizedBox.square(
+                      dimension: 44,
+                      child: Align(
+                        alignment: const Alignment(0.6, -0.6),
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: const BoxDecoration(
+                            color: AppColors.chipTranslucent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close, size: 16, color: AppColors.ink),
+                        ),
                       ),
-                      child: const Icon(Icons.close, size: 16, color: AppColors.ink),
                     ),
                   ),
                 ),

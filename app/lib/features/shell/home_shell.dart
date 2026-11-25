@@ -13,34 +13,68 @@ import '../today/today_screen.dart';
 
 /// Khung app voi thanh dieu huong 5 muc (dac ta muc 5):
 /// Hôm nay, Lịch, nút Chụp ở giữa, Thống kê, Ngân sách.
-class HomeShell extends ConsumerWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
   static const _captureIndex = 2;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends ConsumerState<HomeShell> {
+  // Mo lai app tu nen thi kiem tra lai ngay: timer nua dem co the tre khi may ngu.
+  late final AppLifecycleListener _lifecycle;
+
+  static const _tabs = [
+    TodayScreen(),
+    CalendarScreen(),
+    SizedBox.shrink(), // nut Chup khong co man rieng
+    ComingSoonScreen(
+      title: 'Thống kê',
+      icon: Icons.pie_chart_outline,
+      requirements: 'FR-20, FR-21',
+    ),
+    ComingSoonScreen(
+      title: 'Ngân sách',
+      icon: Icons.account_balance_wallet_outlined,
+      requirements: 'FR-16 đến FR-18',
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(
+      onResume: () => ref.read(todayProvider.notifier).refresh(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final index = ref.watch(tabIndexProvider);
+
+    // Qua nua dem: Lich dang chon "hom nay" cu thi nhay sang hom nay moi.
+    ref.listen<DateTime>(todayProvider, (previous, today) {
+      if (previous != null && previous != today) followNewDay(ref, previous, today);
+    });
 
     return Scaffold(
       // Noi dung cuon xuyen xuong duoi thanh tab mo
       extendBody: true,
       body: IndexedStack(
         index: index,
-        children: const [
-          TodayScreen(),
-          CalendarScreen(),
-          SizedBox.shrink(), // nut Chup khong co man rieng
-          ComingSoonScreen(
-            title: 'Thống kê',
-            icon: Icons.pie_chart_outline,
-            requirements: 'FR-20, FR-21',
-          ),
-          ComingSoonScreen(
-            title: 'Ngân sách',
-            icon: Icons.account_balance_wallet_outlined,
-            requirements: 'FR-16 đến FR-18',
-          ),
+        children: [
+          // IndexedStack giu animation cua tab an (maintainAnimation), nen pet
+          // van "tho" 60 khung hinh/giay khi dang o tab khac. TickerMode tat han.
+          for (var i = 0; i < _tabs.length; i++)
+            TickerMode(enabled: i == index, child: _tabs[i]),
         ],
       ),
       bottomNavigationBar: _FrostedBar(
@@ -49,7 +83,7 @@ class HomeShell extends ConsumerWidget {
           selectedIndex: index,
           onDestinationSelected: (i) {
             HapticFeedback.selectionClick();
-            if (i == _captureIndex) {
+            if (i == HomeShell._captureIndex) {
               startCaptureFlow(context, ref);
               return;
             }

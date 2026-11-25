@@ -1,7 +1,6 @@
 // Ban Flutter moi chuyen CupertinoPageTransitionsBuilder sang thu vien cupertino
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 // Giao dien am ap kieu game nuoi thu (dot 4):
 // - Nen kem, chu nau, MOT mau tuong tac la xanh la (AppColors.primary).
@@ -108,10 +107,16 @@ class AppText {
   static const finePrint = TextStyle(
     fontSize: 12, fontWeight: FontWeight.w400, height: 1.15, color: AppColors.ink,
   );
+  /// Chu nho nhat cho phep (NFR-07: tu 12 sp). Dong sat (1.15) va gian chu am nhe
+  /// de chip so tien tren o lich van vua o 5 inch.
   static const micro = TextStyle(
-    fontSize: 10, fontWeight: FontWeight.w400, height: 1.3, color: AppColors.ink,
+    fontSize: 12, fontWeight: FontWeight.w400, height: 1.15, letterSpacing: -0.12,
+    color: AppColors.ink,
   );
 }
+
+/// Ten ho font khai bao trong pubspec.yaml.
+const appFontFamily = 'Nunito';
 
 TextTheme _buildTextTheme() {
   const theme = TextTheme(
@@ -131,7 +136,8 @@ TextTheme _buildTextTheme() {
     labelMedium: AppText.caption,
     labelSmall: AppText.finePrint,
   );
-  return GoogleFonts.nunitoTextTheme(theme);
+  // Nunito dong goi trong assets/fonts (xem pubspec.yaml), khong tai qua mang
+  return theme.apply(fontFamily: appFontFamily);
 }
 
 ThemeData buildAppTheme() {
@@ -147,6 +153,7 @@ ThemeData buildAppTheme() {
 
   final base = ThemeData(
     useMaterial3: true,
+    fontFamily: appFontFamily,
     colorScheme: scheme,
     textTheme: _buildTextTheme(),
     scaffoldBackgroundColor: AppColors.parchment,
