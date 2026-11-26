@@ -6,6 +6,10 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Pocklet dùng camera để chụp ảnh khoản chi và hoá đơn.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pocklet cần chọn ảnh khoản chi từ thư viện.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Pocklet</string>
 	<key>CFBundleExecutable</key>

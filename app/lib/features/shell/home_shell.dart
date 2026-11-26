@@ -1,97 +1,163 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/coming_soon.dart';
 import '../../core/theme.dart';
 import '../../providers/app_providers.dart';
 import '../calendar/calendar_screen.dart';
+import '../capture/capture_flow.dart';
 import '../placeholder/coming_soon_screen.dart';
 import '../today/today_screen.dart';
 
 /// Khung app voi thanh dieu huong 5 muc (dac ta muc 5):
 /// Hôm nay, Lịch, nút Chụp ở giữa, Thống kê, Ngân sách.
-class HomeShell extends ConsumerWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
   static const _captureIndex = 2;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends ConsumerState<HomeShell> {
+  // Mo lai app tu nen thi kiem tra lai ngay: timer nua dem co the tre khi may ngu.
+  late final AppLifecycleListener _lifecycle;
+
+  static const _tabs = [
+    TodayScreen(),
+    CalendarScreen(),
+    SizedBox.shrink(), // nut Chup khong co man rieng
+    ComingSoonScreen(
+      title: 'Thống kê',
+      icon: Icons.pie_chart_outline,
+      requirements: 'FR-20, FR-21',
+    ),
+    ComingSoonScreen(
+      title: 'Ngân sách',
+      icon: Icons.account_balance_wallet_outlined,
+      requirements: 'FR-16 đến FR-18',
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(
+      onResume: () => ref.read(todayProvider.notifier).refresh(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final index = ref.watch(tabIndexProvider);
 
+    // Qua nua dem: Lich dang chon "hom nay" cu thi nhay sang hom nay moi.
+    ref.listen<DateTime>(todayProvider, (previous, today) {
+      if (previous != null && previous != today) followNewDay(ref, previous, today);
+    });
+
     return Scaffold(
+      // Noi dung cuon xuyen xuong duoi thanh tab mo
+      extendBody: true,
       body: IndexedStack(
         index: index,
-        children: const [
-          TodayScreen(),
-          CalendarScreen(),
-          SizedBox.shrink(), // nut Chup khong co man rieng
-          ComingSoonScreen(
-            title: 'Thống kê',
-            icon: Icons.pie_chart_outline,
-            requirements: 'FR-20, FR-21',
-          ),
-          ComingSoonScreen(
-            title: 'Ngân sách',
-            icon: Icons.account_balance_wallet_outlined,
-            requirements: 'FR-16 đến FR-18',
-          ),
+        children: [
+          // IndexedStack giu animation cua tab an (maintainAnimation), nen pet
+          // van "tho" 60 khung hinh/giay khi dang o tab khac. TickerMode tat han.
+          for (var i = 0; i < _tabs.length; i++)
+            TickerMode(enabled: i == index, child: _tabs[i]),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) {
-          if (i == _captureIndex) {
-            // TODO(FR-10): mo man Camera
-            showComingSoon(context, 'Camera');
-            return;
-          }
-          ref.read(tabIndexProvider.notifier).select(i);
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.today_outlined),
-            selectedIcon: Icon(Icons.today),
-            label: 'Hôm nay',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: 'Lịch',
-          ),
-          NavigationDestination(
-            icon: _CaptureIcon(),
-            label: 'Chụp',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.pie_chart_outline),
-            selectedIcon: Icon(Icons.pie_chart),
-            label: 'Thống kê',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Ngân sách',
-          ),
-        ],
+      bottomNavigationBar: _FrostedBar(
+        child: NavigationBar(
+          backgroundColor: Colors.transparent,
+          selectedIndex: index,
+          onDestinationSelected: (i) {
+            HapticFeedback.selectionClick();
+            if (i == HomeShell._captureIndex) {
+              startCaptureFlow(context, ref);
+              return;
+            }
+            ref.read(tabIndexProvider.notifier).select(i);
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.today_outlined),
+              selectedIcon: Icon(Icons.today),
+              label: 'Hôm nay',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.calendar_month_outlined),
+              selectedIcon: Icon(Icons.calendar_month),
+              label: 'Lịch',
+            ),
+            NavigationDestination(
+              icon: _CaptureIcon(),
+              label: 'Chụp',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.pie_chart_outline),
+              selectedIcon: Icon(Icons.pie_chart),
+              label: 'Thống kê',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              selectedIcon: Icon(Icons.account_balance_wallet),
+              label: 'Ngân sách',
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+/// Nen mo (frosted glass): parchment 80% + blur, ngan cach bang mot duong hairline.
+class _FrostedBar extends StatelessWidget {
+  const _FrostedBar({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.parchment.withAlpha(204),
+            border: const Border(top: BorderSide(color: AppColors.hairline)),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Nut Chup: vien thuoc xanh, thao tac chinh cua app.
 class _CaptureIcon extends StatelessWidget {
   const _CaptureIcon();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 48,
-      height: 34,
+      width: 56,
+      height: 36,
       decoration: BoxDecoration(
-        color: AppColors.accent,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
-      child: const Icon(Icons.photo_camera, color: Colors.white),
+      child: const Icon(Icons.photo_camera, color: Colors.white, size: 20),
     );
   }
 }

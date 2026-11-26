@@ -1,3 +1,5 @@
+import 'package:flutter/painting.dart';
+
 import '../models/budget.dart';
 import '../models/calendar.dart';
 import '../models/category.dart';
@@ -23,4 +25,30 @@ abstract class ExpenseRepository {
 
   /// GET /api/budgets?month=yyyy-MM
   Future<BudgetOverview> getBudgets(DateTime month);
+
+  /// PUT /api/budgets: dat muc tieu chi (ngan sach tong) cua thang (FR-16).
+  /// Doi han muc thi dat lai trang thai da canh bao (BR-04).
+  ///
+  /// LUU Y ban API: PUT /api/budgets THAY TOAN BO ngan sach cua thang
+  /// (`{month, items: [{categoryId, limitAmount}]}`, xem api/README.md).
+  /// Phai GET /api/budgets truoc roi gui kem cac dong ngan sach danh muc dang co,
+  /// neu chi gui dong tong (categoryId null) thi ngan sach danh muc (FR-17) bi xoa.
+  Future<void> setMonthlyBudget(DateTime month, int limit);
+
+  /// POST /api/expenses
+  /// Tra ve khoan chi vua tao va canh bao ngan sach (neu co).
+  Future<ExpenseSaveResult> addExpense(ExpenseDraft draft);
+
+  /// POST /api/expenses/{id}/photos (multipart: file, isReceipt)
+  /// filePath la anh DA NEN theo BR-05.
+  Future<ExpensePhoto> uploadPhoto(
+    int expenseId,
+    String filePath, {
+    bool isReceipt = false,
+  });
+
+  /// Nguon hien thi anh. Null thi giao dien ve khung soc thay the.
+  /// Ban API: NetworkImage('$baseUrl/api/photos/$photoId',
+  ///   headers: {'Authorization': 'Bearer $token'}).
+  ImageProvider? photoImage(int photoId);
 }

@@ -1,4 +1,4 @@
-/// Dinh dang hien thi theo BR-01 (tien) va tieng Viet (ngay gio).
+// Dinh dang hien thi theo BR-01 (tien) va tieng Viet (ngay gio).
 
 const _weekdayNames = [
   'Thứ Hai',
@@ -13,20 +13,25 @@ const _weekdayNames = [
 /// Nhan cot cua luoi lich, tuan bat dau thu Hai (FR-13).
 const weekdayShortNames = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-/// 45000 -> "45.000 ₫"
-String formatVnd(num amount) {
+/// 45000 -> "45.000" (dau cham ngan nghin, BR-01)
+String formatGrouped(num amount) {
   final digits = amount.round().abs().toString();
   final buf = StringBuffer();
   for (var i = 0; i < digits.length; i++) {
     if (i > 0 && (digits.length - i) % 3 == 0) buf.write('.');
     buf.write(digits[i]);
   }
-  return '${amount < 0 ? '-' : ''}$buf ₫';
+  return '${amount < 0 ? '-' : ''}$buf';
 }
+
+/// 45000 -> "45.000 ₫"
+String formatVnd(num amount) => '${formatGrouped(amount)} ₫';
 
 /// Viet gon tren o lich: duoi 1 trieu la "180k", tu 1 trieu la "1,2tr".
 String formatShort(num amount) {
   if (amount <= 0) return '0';
+  // Duoi 1.000 giu nguyen so: 500 ₫ khong duoc hien thanh "1k" hay "0k"
+  if (amount < 1000) return '${amount.round()}';
   final k = (amount / 1000).round();
   if (k < 1000) return '${k}k';
   var tr = (amount / 1000000).toStringAsFixed(1).replaceAll('.', ',');
@@ -55,5 +60,6 @@ String formatMonth(DateTime m) => 'Tháng ${m.month}, ${m.year}';
 /// Chu cai dau cua ten hien thi, dung cho nut Tai khoan.
 String initialOf(String name) {
   final t = name.trim();
-  return t.isEmpty ? '?' : t.substring(0, 1).toUpperCase();
+  // Lay theo rune (khong theo don vi UTF-16) de ten bat dau bang emoji khong bi cat doi
+  return t.isEmpty ? '?' : String.fromCharCode(t.runes.first).toUpperCase();
 }

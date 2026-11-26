@@ -28,7 +28,8 @@ class ExpenseCategory {
       name: json['name'] as String,
       iconName: json['icon'] as String,
       colorHex: json['color'] as String,
-      isDefault: json['userId'] == null,
+      // API tra san isDefault (CategoryDto), khong tra userId.
+      isDefault: json['isDefault'] as bool? ?? false,
     );
   }
 

@@ -17,30 +17,33 @@ class ComingSoonScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 56, color: AppColors.accent),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Màn này sẽ làm ở đợt sau ($requirements).',
-                textAlign: TextAlign.center,
-                style: text.bodyMedium?.copyWith(color: AppColors.textMuted),
-              ),
-            ],
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar.large(title: Text(title)),
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              0,
+              AppSpacing.xl,
+              MediaQuery.paddingOf(context).bottom + AppSpacing.xl,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 48, color: AppColors.inkMuted48),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Màn này sẽ làm ở đợt sau ($requirements).',
+                  textAlign: TextAlign.center,
+                  style: AppText.body.copyWith(color: AppColors.inkMuted48),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

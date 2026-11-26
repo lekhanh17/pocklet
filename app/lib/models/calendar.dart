@@ -28,7 +28,7 @@ class CalendarDay {
 
 /// Du lieu lich cua mot thang. Chi chua nhung ngay co khoan chi.
 class CalendarMonth {
-  const CalendarMonth({
+  CalendarMonth({
     required this.month,
     required this.total,
     required this.days,
@@ -38,10 +38,10 @@ class CalendarMonth {
   final int total;
   final List<CalendarDay> days;
 
-  /// Tra cuu theo so ngay trong thang (1..31).
-  Map<int, CalendarDay> get byDay => {for (final d in days) d.date.day: d};
+  /// Tra cuu theo so ngay trong thang (1..31). Tinh mot lan, khong dung lai moi lan goi.
+  late final Map<int, CalendarDay> byDay = {for (final d in days) d.date.day: d};
 
-  int get daysWithPhoto => days.where((d) => d.coverPhotoId != null).length;
+  late final int daysWithPhoto = days.where((d) => d.coverPhotoId != null).length;
 
   factory CalendarMonth.fromJson(Map<String, dynamic> json) {
     return CalendarMonth(

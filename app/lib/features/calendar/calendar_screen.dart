@@ -12,6 +12,9 @@ import '../../providers/app_providers.dart';
 import '../../widgets/async_view.dart';
 import '../../widgets/dashed_border.dart';
 import '../../widgets/photo_thumb.dart';
+import '../../widgets/pressable.dart';
+import '../../widgets/section_card.dart';
+import '../../widgets/segmented_control.dart';
 import '../photo_viewer/photo_viewer_screen.dart';
 
 /// Man Lịch (dac ta muc 5.1, FR-13 den FR-15).
@@ -22,47 +25,91 @@ class CalendarScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(visibleMonthProvider);
     final monthData = ref.watch(calendarMonthProvider(month));
+    final mode = ref.watch(calendarViewModeProvider);
+    final today = ref.watch(todayProvider);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    // Khong cho sang thang tuong lai (moi ngay deu "chua toi"): ca nut lan vuot ngang
+    final nextMonth = DateTime(month.year, month.month + 1);
+    final hasNext = canShowMonth(nextMonth, today);
 
     void previous() => showCalendarMonth(ref, DateTime(month.year, month.month - 1));
-    void next() => showCalendarMonth(ref, DateTime(month.year, month.month + 1));
+    void next() => showCalendarMonth(ref, nextMonth);
 
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(calendarMonthProvider(month));
-          ref.invalidate(dayExpensesProvider(ref.read(selectedDateProvider)));
-          await ref.read(calendarMonthProvider(month).future);
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          children: [
-            _CalendarHeader(
-              month: month,
-              data: monthData.valueOrNull,
-              onPrevious: previous,
-              onNext: next,
+    return RefreshIndicator.adaptive(
+      onRefresh: () async {
+        refreshExpenseData(ref);
+        await ref.read(calendarMonthProvider(month).future);
+      },
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverAppBar.large(
+            title: const Text('Lịch'),
+            actions: [
+              IconButton(
+                tooltip: 'Tìm kiếm',
+                // TODO(FR-23): mo man Tim kiem
+                onPressed: () => showComingSoon(context, 'Tìm kiếm'),
+                icon: const Icon(Icons.search),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+          ),
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.md, 0, AppSpacing.md, bottomInset + AppSpacing.xl,
             ),
-            const SizedBox(height: 8),
-            const Center(child: _ViewModeSwitch()),
-            const SizedBox(height: 12),
-            // Vuot ngang luoi de doi thang
-            GestureDetector(
-              onHorizontalDragEnd: (details) {
-                final velocity = details.primaryVelocity ?? 0;
-                if (velocity < -250) next();
-                if (velocity > 250) previous();
-              },
-              child: AsyncView<CalendarMonth>(
-                value: monthData,
-                loadingHeight: 360,
-                onRetry: () => ref.invalidate(calendarMonthProvider(month)),
-                builder: (data) => _MonthGrid(month: month, data: data),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _CalendarHeader(
+                    month: month,
+                    data: monthData.valueOrNull,
+                    onPrevious: previous,
+                    onNext: hasNext ? next : null,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Center(
+                    child: SizedBox(
+                      width: 240,
+                      child: AppSegmentedControl<CalendarViewMode>(
+                        segments: const {
+                          CalendarViewMode.photo: 'Ảnh',
+                          CalendarViewMode.amount: 'Số tiền',
+                        },
+                        selected: mode,
+                        onChanged: (value) =>
+                            ref.read(calendarViewModeProvider.notifier).set(value),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  // Vuot ngang luoi de doi thang
+                  SectionCard(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    child: GestureDetector(
+                      onHorizontalDragEnd: (details) {
+                        final velocity = details.primaryVelocity ?? 0;
+                        if (velocity < -250 && hasNext) next();
+                        if (velocity > 250) previous();
+                      },
+                      child: AsyncView<CalendarMonth>(
+                        value: monthData,
+                        loadingHeight: 360,
+                        onRetry: () => ref.invalidate(calendarMonthProvider(month)),
+                        builder: (data) => _MonthGrid(month: month, data: data, today: today),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const _DayDetail(),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            const _DayDetail(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -83,11 +130,12 @@ class _CalendarHeader extends StatelessWidget {
   final DateTime month;
   final CalendarMonth? data;
   final VoidCallback onPrevious;
-  final VoidCallback onNext;
+
+  /// Null khi dang o thang hien tai: nut mo di, khong sang thang tuong lai.
+  final VoidCallback? onNext;
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
     final summary = data == null
         ? ' '
         : '${formatVnd(data!.total)} · ${data!.daysWithPhoto} ngày có ảnh';
@@ -102,13 +150,11 @@ class _CalendarHeader extends StatelessWidget {
         Expanded(
           child: Column(
             children: [
-              Text(
-                formatMonth(month),
-                style: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-              ),
+              Text(formatMonth(month), style: AppText.tagline),
+              const SizedBox(height: 2),
               Text(
                 summary,
-                style: text.bodyMedium?.copyWith(color: AppColors.textMuted),
+                style: AppText.caption.copyWith(color: AppColors.inkMuted48),
               ),
             ],
           ),
@@ -118,41 +164,7 @@ class _CalendarHeader extends StatelessWidget {
           onPressed: onNext,
           icon: const Icon(Icons.chevron_right),
         ),
-        IconButton(
-          tooltip: 'Tìm kiếm',
-          // TODO(FR-23): mo man Tim kiem
-          onPressed: () => showComingSoon(context, 'Tìm kiếm'),
-          icon: const Icon(Icons.search),
-        ),
       ],
-    );
-  }
-}
-
-class _ViewModeSwitch extends ConsumerWidget {
-  const _ViewModeSwitch();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(calendarViewModeProvider);
-
-    return SegmentedButton<CalendarViewMode>(
-      showSelectedIcon: false,
-      segments: const [
-        ButtonSegment(
-          value: CalendarViewMode.photo,
-          icon: Icon(Icons.photo_outlined),
-          label: Text('Ảnh'),
-        ),
-        ButtonSegment(
-          value: CalendarViewMode.amount,
-          icon: Icon(Icons.payments_outlined),
-          label: Text('Số tiền'),
-        ),
-      ],
-      selected: {mode},
-      onSelectionChanged: (selection) =>
-          ref.read(calendarViewModeProvider.notifier).set(selection.first),
     );
   }
 }
@@ -162,16 +174,17 @@ class _ViewModeSwitch extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _MonthGrid extends ConsumerWidget {
-  const _MonthGrid({required this.month, required this.data});
+  const _MonthGrid({required this.month, required this.data, required this.today});
 
   final DateTime month;
   final CalendarMonth data;
+  final DateTime today;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(selectedDateProvider);
+    // Khong watch ngay dang chon o day: chon ngay khac chi ve lai 2 o (xem _DayCell),
+    // khong dung lai ca luoi 42 o.
     final mode = ref.watch(calendarViewModeProvider);
-    final today = dateOnly(DateTime.now());
     final byDay = data.byDay;
 
     final leading = DateTime(month.year, month.month, 1).weekday - 1;
@@ -187,17 +200,16 @@ class _MonthGrid extends ConsumerWidget {
                 child: Center(
                   child: Text(
                     name,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w800,
+                    style: AppText.finePrint.copyWith(
+                      color: AppColors.inkMuted48,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xs),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -205,8 +217,8 @@ class _MonthGrid extends ConsumerWidget {
           itemCount: cellCount,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 7,
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 4,
+            mainAxisSpacing: AppSpacing.xxs,
+            crossAxisSpacing: AppSpacing.xxs,
             childAspectRatio: 0.72,
           ),
           itemBuilder: (context, i) {
@@ -218,7 +230,6 @@ class _MonthGrid extends ConsumerWidget {
               info: byDay[dayNumber],
               mode: mode,
               isToday: isSameDay(date, today),
-              isSelected: isSameDay(date, selected),
               isFuture: date.isAfter(today),
               onTap: () => ref.read(selectedDateProvider.notifier).select(date),
             );
@@ -237,15 +248,15 @@ int _amountLevel(int total) {
   return 4;
 }
 
-const _amountAlpha = [0, 40, 90, 160, 230];
+/// Do dam cua ink theo muc (don sac, khong them mau nhan thu hai).
+const _amountAlpha = [0, 18, 46, 110, 200];
 
-class _DayCell extends StatelessWidget {
+class _DayCell extends ConsumerWidget {
   const _DayCell({
     required this.date,
     required this.info,
     required this.mode,
     required this.isToday,
-    required this.isSelected,
     required this.isFuture,
     required this.onTap,
   });
@@ -254,59 +265,59 @@ class _DayCell extends StatelessWidget {
   final CalendarDay? info;
   final CalendarViewMode mode;
   final bool isToday;
-  final bool isSelected;
   final bool isFuture;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // select: o chi build lai khi CHINH no duoc chon / bo chon
+    final isSelected = ref.watch(
+      selectedDateProvider.select((selected) => isSameDay(selected, date)),
+    );
     final day = info;
     final cover = mode == CalendarViewMode.photo ? day?.coverPhotoId : null;
     Widget content;
-    var showSolidBorder = false;
 
     if (isFuture) {
       // Ngay tuong lai: chi co so, mau nhat
       content = Center(
         child: Text(
           '${date.day}',
-          style: TextStyle(
-            color: AppColors.textMuted.withAlpha(110),
-            fontWeight: FontWeight.w700,
+          style: AppText.finePrint.copyWith(
+            color: AppColors.inkMuted48.withAlpha(110),
+            fontWeight: FontWeight.w600,
           ),
         ),
       );
     } else if (day == null) {
       // Ngay khong chi: vien net dut, hien 0
       content = DashedBox(
-        radius: 10,
+        color: AppColors.inkMuted48.withAlpha(140),
         child: _DayLabels(
           day: date.day,
           amount: '0',
-          color: AppColors.textMuted,
+          color: AppColors.inkMuted48,
           isToday: isToday,
         ),
       );
     } else if (cover != null) {
-      // O co anh: anh dai dien, so ngay, tong tien
+      // O co anh: anh dai dien; so ngay va tong tien nam tren chip trong suot
       content = Stack(
         fit: StackFit.expand,
         children: [
           PhotoThumb(photoId: cover, borderRadius: 0, showIcon: false),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0x22000000), Color(0x99000000)],
-              ),
-            ),
+          Positioned(
+            left: 3,
+            top: 3,
+            child: OverlayChip(label: '${date.day}', small: true),
           ),
-          _DayLabels(
-            day: date.day,
-            amount: formatShort(day.total),
-            color: Colors.white,
-            isToday: false,
+          Positioned(
+            left: 2,
+            right: 2,
+            bottom: 3,
+            child: Center(
+              child: OverlayChip(label: formatShort(day.total), small: true),
+            ),
           ),
         ],
       );
@@ -314,35 +325,31 @@ class _DayCell extends StatelessWidget {
       // O khong anh (hoac kieu xem So tien)
       final level = mode == CalendarViewMode.amount ? _amountLevel(day.total) : 0;
       final background = level == 0
-          ? AppColors.surface
-          : AppColors.accent.withAlpha(_amountAlpha[level]);
-      showSolidBorder = level == 0;
+          ? AppColors.parchment
+          : AppColors.ink.withAlpha(_amountAlpha[level]);
       content = ColoredBox(
         color: background,
         child: _DayLabels(
           day: date.day,
           amount: formatShort(day.total),
-          color: level >= 3 ? Colors.white : AppColors.textPrimary,
+          color: level >= 3 ? AppColors.bodyOnDark : AppColors.ink,
           isToday: isToday && level < 3,
         ),
       );
     }
 
-    final Border? border;
-    if (isSelected) {
-      border = Border.all(color: AppColors.accent, width: 2);
-    } else if (showSolidBorder) {
-      border = Border.all(color: AppColors.border);
-    } else {
-      border = null;
-    }
+    final border =
+        isSelected ? Border.all(color: AppColors.primaryFocus, width: 2) : null;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
+    return Pressable(
+      // Ngay tuong lai khong chon duoc (FR-13: lam mo)
+      onTap: isFuture ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: border,
         ),
         child: content,
@@ -367,16 +374,15 @@ class _DayLabels extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(5, 3, 5, 4),
+      padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '$day',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: isToday ? AppColors.accent : color,
+            style: AppText.finePrint.copyWith(
+              fontWeight: FontWeight.w600,
+              color: isToday ? AppColors.primary : color,
             ),
           ),
           const Spacer(),
@@ -387,9 +393,8 @@ class _DayLabels extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.clip,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+              style: AppText.micro.copyWith(
+                fontWeight: FontWeight.w600,
                 color: color,
               ),
             ),
@@ -410,27 +415,15 @@ class _DayDetail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final day = ref.watch(selectedDateProvider);
-    final today = dateOnly(DateTime.now());
+    final today = ref.watch(todayProvider);
     final categories =
         ref.watch(categoryMapProvider).valueOrNull ?? const <int, ExpenseCategory>{};
-    final text = Theme.of(context).textTheme;
 
     Widget header(int? total) => Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Expanded(
-              child: Text(
-                formatFullDay(day),
-                style: text.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-              ),
-            ),
-            if (total != null)
-              Text(
-                formatVnd(total),
-                style: text.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.accent,
-                ),
-              ),
+            Expanded(child: Text(formatFullDay(day), style: AppText.tagline)),
+            if (total != null) Text(formatVnd(total), style: AppText.tagline),
           ],
         );
 
@@ -439,7 +432,7 @@ class _DayDetail extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           header(null),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm),
           const _EmptyDay(message: 'Ngày này chưa tới'),
         ],
       );
@@ -460,11 +453,12 @@ class _DayDetail extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             header(total),
+            const SizedBox(height: 2),
             Text(
               '${items.length} khoản chi',
-              style: text.bodyMedium?.copyWith(color: AppColors.textMuted),
+              style: AppText.caption.copyWith(color: AppColors.inkMuted48),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             if (items.isEmpty) const _EmptyDay(message: 'Không có khoản chi nào'),
             if (withPhoto.isNotEmpty)
               GridView.builder(
@@ -474,8 +468,8 @@ class _DayDetail extends ConsumerWidget {
                 itemCount: withPhoto.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 8,
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.xs,
                   childAspectRatio: 0.66,
                 ),
                 itemBuilder: (context, i) {
@@ -492,12 +486,32 @@ class _DayDetail extends ConsumerWidget {
                 },
               ),
             if (withoutPhoto.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              for (final expense in withoutPhoto)
-                _NoPhotoRow(
-                  expense: expense,
-                  category: categories[expense.categoryId] ?? ExpenseCategory.unknown,
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Không có ảnh',
+                style: AppText.captionStrong.copyWith(color: AppColors.inkMuted48),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              SectionCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < withoutPhoto.length; i++) ...[
+                      if (i > 0)
+                        const Divider(
+                          height: 1,
+                          indent: 68,
+                          color: AppColors.hairline,
+                        ),
+                      _NoPhotoRow(
+                        expense: withoutPhoto[i],
+                        category: categories[withoutPhoto[i].categoryId] ??
+                            ExpenseCategory.unknown,
+                      ),
+                    ],
+                  ],
                 ),
+              ),
             ],
           ],
         );
@@ -523,7 +537,8 @@ class _PhotoTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: GestureDetector(
+          child: Pressable(
+            semanticLabel: 'Xem ảnh',
             onTap: onOpenPhoto,
             child: Stack(
               fit: StackFit.expand,
@@ -542,9 +557,9 @@ class _PhotoTile extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         // Cham ten: mo man Sua khoan chi
-        GestureDetector(
+        Pressable(
           // TODO(FR-08): mo man Sua khoan chi
           onTap: () => showComingSoon(context, 'Sửa khoản chi'),
           child: Column(
@@ -554,11 +569,12 @@ class _PhotoTile extends StatelessWidget {
                 expense.note ?? category.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                style: AppText.captionStrong,
               ),
+              const SizedBox(height: 2),
               Text(
                 formatVnd(expense.amount),
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                style: AppText.finePrint.copyWith(color: AppColors.inkMuted48),
               ),
             ],
           ),
@@ -576,74 +592,64 @@ class _NoPhotoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          // TODO(FR-08): mo man Sua khoan chi
-          onTap: () => showComingSoon(context, 'Sửa khoản chi'),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+    return Pressable(
+      // TODO(FR-08): mo man Sua khoan chi
+      onTap: () => showComingSoon(context, 'Sửa khoản chi'),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md, AppSpacing.sm, AppSpacing.xxs, AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: category.color.withAlpha(30),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(category.icon, color: category.color, size: 20),
             ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: category.color.withAlpha(35),
-                  child: Icon(category.icon, color: category.color, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        expense.note ?? category.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      Text(
-                        '${category.name} · ${formatTime(expense.spentAt)}',
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    expense.note ?? category.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.bodyStrong,
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${category.name} · ${formatTime(expense.spentAt)}',
+                    style: AppText.finePrint.copyWith(color: AppColors.inkMuted48),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
+                  child: Text(formatVnd(expense.amount), style: AppText.captionStrong),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Text(
-                        formatVnd(expense.amount),
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    TextButton.icon(
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                      // TODO(FR-10): them anh cho khoan chi
-                      onPressed: () => showComingSoon(context, 'Thêm ảnh'),
-                      icon: const Icon(Icons.add_a_photo_outlined, size: 16),
-                      label: const Text('Thêm ảnh'),
-                    ),
-                  ],
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                  ),
+                  // TODO(FR-10): them anh cho khoan chi
+                  onPressed: () => showComingSoon(context, 'Thêm ảnh'),
+                  icon: const Icon(Icons.add_a_photo_outlined, size: 16),
+                  label: const Text('Thêm ảnh'),
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -660,11 +666,11 @@ class _EmptyDay extends StatelessWidget {
     return SizedBox(
       height: 88,
       child: DashedBox(
-        radius: 14,
+        radius: AppRadius.lg,
         child: Center(
           child: Text(
             message,
-            style: const TextStyle(color: AppColors.textMuted),
+            style: AppText.caption.copyWith(color: AppColors.inkMuted48),
           ),
         ),
       ),
